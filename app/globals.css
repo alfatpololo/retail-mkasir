@@ -1,0 +1,81 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-green: #16a34a; /* unified green */
+  --primary-green-strong: #0f7d36; /* darker end for gradient */
+  --primary-green-light: #ecfdf3;
+  --primary-green-soft: #d1fae5;
+  --primary-green-gradient: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-strong) 100%);
+  --accent-orange: #f59e0b;
+  --accent-orange-strong: #d97706;
+  --accent-orange-gradient: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-strong) 100%);
+}
+
+@layer utilities {
+  /* Backgrounds (convert greens to gradient) */
+  .bg-emerald-500,
+  .bg-green-500 {
+    background-image: var(--primary-green-gradient) !important;
+    background-color: transparent !important;
+  }
+  .hover\:bg-emerald-600:hover,
+  .hover\:bg-green-600:hover,
+  .hover\:bg-emerald-500:hover,
+  .hover\:bg-green-500:hover {
+    background-image: var(--primary-green-gradient) !important;
+    background-color: transparent !important;
+  }
+  .bg-emerald-50,
+  .bg-green-50 {
+    background-color: var(--primary-green-light) !important;
+  }
+  .bg-emerald-100,
+  .bg-green-100 {
+    background-color: var(--primary-green-soft) !important;
+  }
+
+  /* Text */
+  .text-emerald-500,
+  .text-green-500,
+  .text-emerald-600,
+  .text-green-600,
+  .text-emerald-700,
+  .text-green-700 {
+    color: var(--primary-green) !important;
+  }
+
+  /* Borders */
+  .border-emerald-500,
+  .border-green-500 {
+    border-color: var(--primary-green) !important;
+  }
+
+  /* Rings */
+  .ring-emerald-500,
+  .ring-green-500,
+  .focus\:ring-emerald-500:focus,
+  .focus\:ring-green-500:focus {
+    --tw-ring-color: var(--primary-green) !important;
+  }
+
+  /* Accent orange gradient for "plus"/add buttons */
+  .btn-orange-gradient {
+    background-image: var(--accent-orange-gradient);
+    color: white !important;
+  }
+  .btn-orange-gradient:hover {
+    filter: brightness(0.95);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
