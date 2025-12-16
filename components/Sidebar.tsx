@@ -58,7 +58,7 @@ export default function Sidebar() {
           <img
             src="/images/logomkasir.png"
             alt="MKASIR"
-            className="w-16 h-16 md:w-18 md:h-18 lg:w-20 lg:h-20 object-contain"
+            className="w-20 h-20 md:w-22 md:h-22 lg:w-24 lg:h-24 object-contain"
           />
           <div className="text-center leading-tight">
             <div className="font-bold text-white text-sm md:text-base">MKASIR</div>
