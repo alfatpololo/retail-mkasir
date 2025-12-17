@@ -8,6 +8,7 @@ interface Product {
   price: number;
   category: string;
   image: string;
+  stock: number;
 }
 
 interface AddToCartModalProps {
@@ -32,19 +33,26 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
 
   const units = ['pcs', 'batang', 'bungkus', 'bal', 'lusin', 'karton'];
+  const maxStock = product.stock ?? 0;
 
   const finalPrice = negotiatedPrice ? parseFloat(negotiatedPrice) : product.price;
-  const subtotal = finalPrice * quantity;
+  const safeQty = Math.min(quantity, maxStock || quantity);
+  const subtotal = finalPrice * safeQty;
 
   const handleAdd = () => {
     const negotiated = negotiatedPrice ? parseFloat(negotiatedPrice) : undefined;
     const priceToUse = negotiated ?? product.price;
+    const qtyToAdd = Math.min(quantity, maxStock || quantity);
+
+    if (qtyToAdd <= 0) {
+      return;
+    }
 
     onAdd({
       productId: product.id,
       name: product.name,
       unit,
-      quantity,
+      quantity: qtyToAdd,
       price: priceToUse,
       negotiatedPrice: negotiated,
       note: note || undefined,
@@ -69,13 +77,22 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
           {/* Product Info */}
           <div className="flex items-start gap-2.5 md:gap-3 p-2.5 md:p-3 bg-gray-50 rounded-lg md:rounded-xl">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-lg md:rounded-xl overflow-hidden bg-white shadow-sm flex-shrink-0">
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              {product.image ? (
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[10px] md:text-xs text-gray-400">
+                  Tidak ada gambar
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-sm md:text-base font-bold text-gray-900 mb-1 line-clamp-2">{product.name}</h4>
               <p className="text-[10px] md:text-xs text-gray-500 mb-1.5 md:mb-2">{product.category}</p>
               <div className="flex items-baseline gap-1.5 md:gap-2">
                 <p className="text-lg md:text-xl font-bold text-gray-900">Rp {product.price.toLocaleString()}</p>
+                <span className="ml-2 text-[10px] md:text-xs text-emerald-700 font-semibold">
+                  Stok: {maxStock}
+                </span>
               </div>
             </div>
           </div>
@@ -86,7 +103,7 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
               <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">Jumlah</label>
               <div className="flex items-center gap-1.5 md:gap-2">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => setQuantity(Math.max(1, Math.min(maxStock || 1, quantity - 1)))}
                   className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all cursor-pointer flex-shrink-0"
                 >
                   <span className="ri-subtract-line text-base md:text-lg text-gray-700"></span>
@@ -94,12 +111,16 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
                 <input
                   type="number"
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setQuantity(Math.max(1, Math.min(maxStock || val, val)));
+                  }}
                   className="flex-1 h-9 md:h-10 px-2.5 md:px-3 border-2 border-gray-200 rounded-lg text-center text-sm md:text-base font-bold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-white btn-orange-gradient active:scale-95 transition-all cursor-pointer flex-shrink-0"
+                  onClick={() => setQuantity(Math.max(1, Math.min(maxStock || quantity + 1, quantity + 1)))}
+                  disabled={maxStock > 0 && quantity >= maxStock}
+                  className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-white btn-orange-gradient active:scale-95 transition-all cursor-pointer flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="ri-add-line text-base md:text-lg"></span>
                 </button>

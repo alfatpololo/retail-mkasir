@@ -2,6 +2,49 @@
 
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { API_BASE_URL } from '@/utils/api';
+
+interface ApiTransactionItem {
+  id: number;
+  nama_produk: string;
+  qty: number;
+  harga_jual: number;
+  subtotal: number;
+}
+
+interface ApiTransaction {
+  id: number;
+  nomor_transaksi: string;
+  waktu_pesan: string;
+  grand_total: number;
+  status: string;
+  metode_pembayaran: string;
+  items: ApiTransactionItem[];
+}
+
+interface ApiCustomer {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  stall_id: number;
+  nama: string;
+  total_transaksi: number;
+  total_belanja: number;
+  riwayat_transaksi?: ApiTransaction[];
+}
+
+interface ApiCustomersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: ApiCustomer[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+  };
+}
 
 interface Customer {
   id: string;
@@ -9,59 +52,80 @@ interface Customer {
   phone: string;
   transactionCount: number;
   totalSpent: number;
+  joinedAt: string;
+  history: ApiTransaction[];
 }
 
 export default function CustomersPage() {
-  const baseCustomers: Customer[] = [
-    { id: '1', name: 'Ahmad Wijaya', phone: '081234567890', transactionCount: 45, totalSpent: 5670000 },
-    { id: '2', name: 'Siti Nurhaliza', phone: '081234567891', transactionCount: 32, totalSpent: 4230000 },
-    { id: '3', name: 'Budi Santoso', phone: '081234567892', transactionCount: 28, totalSpent: 3890000 },
-    { id: '4', name: 'Dewi Lestari', phone: '081234567893', transactionCount: 56, totalSpent: 7120000 },
-    { id: '5', name: 'Eko Prasetyo', phone: '081234567894', transactionCount: 19, totalSpent: 2340000 },
-  ];
-  const [customers, setCustomers] = useState<Customer[]>(baseCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '' });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCustomers = async (currentPage: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const jwtPin =
+        typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
+
+      if (!jwtPin) {
+        throw new Error('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/master/customers?page=${currentPage}&limit=${limit}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${jwtPin}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const json: ApiCustomersResponse = await response.json();
+
+      const mapped: Customer[] = json.data.data.map((item) => ({
+        id: String(item.id),
+        name: item.nama,
+        phone: '-', // API master/customers saat ini belum mengembalikan nomor telepon
+        transactionCount: item.total_transaksi,
+        totalSpent: item.total_belanja,
+        joinedAt: item.created_at,
+        history: item.riwayat_transaksi || [],
+      }));
+
+      setCustomers(mapped);
+      setPage(json.data.page);
+      setTotalPages(json.data.total_pages);
+      setTotalItems(json.data.total);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Gagal memuat pelanggan';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('customers');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Customer[];
-        if (Array.isArray(parsed) && parsed.length) {
-          // merge without duplicates by id
-          const merged = [...baseCustomers];
-          parsed.forEach((c) => {
-            if (!merged.find((m) => m.id === c.id)) merged.push(c);
-          });
-          setCustomers(merged);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load customers', err);
-    }
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newCustomer: Customer = {
-      id: Date.now().toString(),
-      name: formData.name,
-      phone: formData.phone,
-      transactionCount: 0,
-      totalSpent: 0,
-    };
-    setCustomers([...customers, newCustomer]);
-    try {
-      const stored = localStorage.getItem('customers');
-      const parsed = stored ? (JSON.parse(stored) as Customer[]) : [];
-      localStorage.setItem('customers', JSON.stringify([...parsed, newCustomer]));
-    } catch (err) {
-      console.error('Failed to save customer', err);
-    }
-    setShowModal(false);
-    setFormData({ name: '', phone: '' });
-  };
+    fetchCustomers(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   return (
     <div className="min-h-screen bg-gray-50 pl-64">
@@ -70,15 +134,17 @@ export default function CustomersPage() {
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Customer Data</h1>
-            <p className="text-gray-600">Manage your customer information</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Data Pelanggan</h1>
+            <p className="text-gray-600">
+              Kelola informasi pelanggan dan riwayat transaksi mereka
+            </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="px-5 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-2"
           >
             <span className="ri-user-add-line w-5 h-5 flex items-center justify-center"></span>
-            Add Customer
+            Tambah Pelanggan
           </button>
         </div>
 
@@ -87,15 +153,57 @@ export default function CustomersPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Transactions</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Spent</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Pelanggan
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Kontak
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Total Transaksi
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Total Belanja
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {customers.map((customer) => (
+                {loading && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-6 text-center text-sm text-gray-500"
+                    >
+                      Memuat data pelanggan...
+                    </td>
+                  </tr>
+                )}
+                {!loading && error && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-6 text-center text-sm text-red-500"
+                    >
+                      {error}
+                    </td>
+                  </tr>
+                )}
+                {!loading && !error && customers.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-6 text-center text-sm text-gray-500"
+                    >
+                      Tidak ada pelanggan.
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  !error &&
+                  customers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -109,7 +217,9 @@ export default function CustomersPage() {
                       <span className="text-sm text-gray-600">{customer.phone}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{customer.transactionCount} times</span>
+                      <span className="text-sm text-gray-900">
+                        {customer.transactionCount} transaksi
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-bold text-gray-900">Rp {customer.totalSpent.toLocaleString()}</span>
@@ -128,6 +238,31 @@ export default function CustomersPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            Menampilkan {customers.length} dari {totalItems} pelanggan (halaman {page} dari{' '}
+            {totalPages})
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page === 1 || loading}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sebelumnya
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page === totalPages || loading}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Berikutnya
+            </button>
           </div>
         </div>
       </div>

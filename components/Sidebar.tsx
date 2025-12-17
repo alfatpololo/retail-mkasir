@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { logoutUser } from '@/utils/storage';
 
 interface MenuItem {
   icon: string;
@@ -23,21 +24,127 @@ const sections: MenuSection[] = [
   {
     title: 'Manajemen',
     items: [
-      { icon: 'ri-price-tag-3-line', label: 'Kategori Produk', path: '/categories' },
-      { icon: 'ri-box-3-line', label: 'Produk', path: '/products' },
-      { icon: 'ri-exchange-dollar-line', label: 'Piutang', path: '/debts' },
-      { icon: 'ri-user-line', label: 'Pelanggan', path: '/customers' },
+      {
+        icon: 'ri-price-tag-3-line',
+        label: 'Kategori Produk',
+        path: '/categories',
+      },
+      {
+        icon: 'ri-box-3-line',
+        label: 'Produk',
+        path: '/products',
+      },
+      {
+        icon: 'ri-exchange-dollar-line',
+        label: 'Piutang',
+        path: '/debts',
+      },
+      {
+        icon: 'ri-user-line',
+        label: 'Pelanggan',
+        path: '/customers',
+      },
     ],
   },
   {
     title: 'Transaksi',
     items: [
-      { icon: 'ri-time-line', label: 'History Penjualan', path: '/transactions?tab=history' },
+      {
+        icon: 'ri-time-line',
+        label: 'History Penjualan',
+        path: '/transactions?tab=history',
+      },
+    ],
+  },
+  {
+    title: 'Inventory',
+    items: [
+      {
+        icon: 'ri-shopping-bag-3-line',
+        label: 'Pembelian Stok',
+        path: '/restock',
+      },
+      {
+        icon: 'ri-swap-line',
+        label: 'Kelola Stok',
+        path: '/stock-conversion',
+      },
+      {
+        icon: 'ri-history-line',
+        label: 'Riwayat Stok',
+        path: '/stock-history',
+      },
+      {
+        icon: 'ri-clipboard-line',
+        label: 'Stok Opname',
+        path: '/stock-opname',
+      },
+    ],
+  },
+  {
+    title: 'Laporan',
+    items: [
+      {
+        icon: 'ri-file-list-3-line',
+        label: 'Laporan Penjualan',
+        path: '/reports',
+      },
+      {
+        icon: 'ri-wallet-3-line',
+        label: 'Ringkasan Pembayaran',
+        path: '/payment-summary',
+      },
+      {
+        icon: 'ri-star-smile-line',
+        label: 'Produk Terlaris',
+        path: '/bestseller-products',
+      },
+      {
+        icon: 'ri-team-line',
+        label: 'Laporan Pelanggan',
+        path: '/customer-report',
+      },
+      {
+        icon: 'ri-user-3-line',
+        label: 'Operasional Kasir',
+        path: '/cashier-operations',
+      },
+      {
+        icon: 'ri-money-dollar-circle-line',
+        label: 'Kas Harian',
+        path: '/daily-cash',
+      },
+      {
+        icon: 'ri-bar-chart-2-line',
+        label: 'Laba Rugi',
+        path: '/profit-loss',
+      },
     ],
   },
   {
     title: 'Setting',
-    items: [{ icon: 'ri-printer-line', label: 'Setting Printer', path: '/settings' }],
+    items: [
+      {
+        icon: 'ri-printer-line',
+        label: 'Setting Printer',
+        path: '/settings',
+      },
+    ],
+  },
+  {
+    title: 'Profile',
+    items: [
+      {
+        icon: 'ri-hand-coin-line',
+        label: 'Tutup Kasir',
+        path: '/close-cashier',
+      },
+      {
+        icon: 'ri-user-3-line',
+        label: 'Profile',
+            path: '/profile-detail',
+      },
+    ],
   },
 ];
 
@@ -53,9 +160,9 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
-    // Clear session
-    localStorage.removeItem('currentUser');
-    // Redirect to login
+    // Hapus semua session/storage terkait user & kasir
+    logoutUser();
+    // Redirect ke halaman login
     router.push('/login');
   };
 

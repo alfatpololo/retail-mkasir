@@ -4,64 +4,71 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { convertTo62Format } from '@/utils/phone';
+import { login } from '@/utils/api';
+import { saveUserSession } from '@/utils/storage';
 
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
     // Validasi nomor HP
     if (!phone || phone.length < 10) {
-      alert('Nomor HP tidak valid');
+      setError('Nomor HP tidak valid');
       setIsLoading(false);
       return;
     }
 
     // Validasi password
     if (!password || password.length < 6) {
-      alert('Password minimal 6 karakter');
+      setError('Password minimal 6 karakter');
       setIsLoading(false);
       return;
     }
 
-    // Simulasi validasi nomor HP dan password dari localStorage
     try {
-      const storedUsers = localStorage.getItem('users');
-      const users = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      const user = users.find((u: any) => u.phone === phone);
-      
-      if (!user) {
-        alert('Nomor HP tidak terdaftar. Silakan daftar terlebih dahulu.');
+      // Konversi nomor telepon ke format 62
+      const formattedPhone = convertTo62Format(phone);
+
+      // Panggil API login
+      const response = await login({
+        notelp: formattedPhone,
+        password: password,
+        device: 'mobile',
+        version: '1.0.0',
+      });
+
+      // Cek apakah login berhasil
+      if (response.success && response.data) {
+        // Simpan data user ke storage
+        saveUserSession(response.data);
+
+        // Simpan juga ke currentUser untuk kompatibilitas dengan halaman PIN
+        localStorage.setItem('currentUser', JSON.stringify({
+          id: response.data.user_id,
+          name: response.data.nama_user,
+          phone: response.data.notelp,
+          loggedIn: true,
+          pinVerified: false,
+        }));
+
+        // Redirect ke halaman PIN atau dashboard
+        router.push('/pin');
+      } else {
+        setError(response.message || 'Login gagal');
         setIsLoading(false);
-        return;
       }
-
-      // Validasi password
-      if (user.password !== password) {
-        alert('Password salah. Silakan coba lagi.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Simpan data user yang login
-      localStorage.setItem('currentUser', JSON.stringify({
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        loggedIn: true,
-      }));
-
-      // Redirect ke halaman PIN
-      router.push('/pin');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      alert('Terjadi kesalahan saat login');
+      setError(error.message || 'Terjadi kesalahan saat login. Pastikan API URL sudah benar.');
       setIsLoading(false);
     }
   };
@@ -79,12 +86,21 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Nomor HP</label>
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => {
+                setPhone(e.target.value.replace(/\D/g, ''));
+                setError('');
+              }}
               placeholder="08xxxxxxxxxx"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
@@ -98,7 +114,10 @@ export default function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
               placeholder="********"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
