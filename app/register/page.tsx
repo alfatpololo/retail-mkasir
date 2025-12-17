@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -11,14 +12,61 @@ export default function RegisterPage() {
     password: '',
     confirm: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (form.password !== form.confirm) {
       alert('Konfirmasi password tidak cocok');
       return;
     }
-    console.log(form);
+
+    if (form.password.length < 6) {
+      alert('Password minimal 6 karakter');
+      return;
+    }
+
+    if (!form.phone || form.phone.length < 10) {
+      alert('Nomor HP tidak valid');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Simpan user ke localStorage
+      const storedUsers = localStorage.getItem('users');
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      // Cek apakah nomor HP sudah terdaftar
+      const existingUser = users.find((u: any) => u.phone === form.phone);
+      if (existingUser) {
+        alert('Nomor HP sudah terdaftar. Silakan login.');
+        setIsLoading(false);
+        return;
+      }
+
+      const newUser = {
+        id: `USER-${Date.now()}`,
+        name: form.name,
+        phone: form.phone,
+        password: form.password, // Dalam production, password harus di-hash
+        pin: '123456', // Default PIN untuk kasir (dalam production, ini harus di-set oleh admin)
+        createdAt: new Date().toISOString(),
+      };
+
+      users.push(newUser);
+      localStorage.setItem('users', JSON.stringify(users));
+
+      alert('Registrasi berhasil! Silakan login.');
+      router.push('/login');
+    } catch (error) {
+      console.error('Register error:', error);
+      alert('Terjadi kesalahan saat registrasi');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,10 +99,12 @@ export default function RegisterPage() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
               placeholder="08xxxxxxxxxx"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
+              minLength={10}
+              maxLength={13}
             />
           </div>
 
@@ -86,9 +136,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-orange-gradient hover:opacity-95 active:scale-[0.99] transition"
+            disabled={isLoading}
+            className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-orange-gradient hover:opacity-95 active:scale-[0.99] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Daftar
+            {isLoading ? 'Mendaftar...' : 'Daftar'}
           </button>
         </form>
 

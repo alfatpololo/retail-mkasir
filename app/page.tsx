@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AddToCartModal from '@/components/AddToCartModal';
 import Sidebar from '@/components/Sidebar';
 
@@ -22,6 +23,38 @@ interface CartItem extends Product {
 }
 
 export default function POSPage() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  
+  useEffect(() => {
+    // Cek apakah user sudah login dan PIN sudah diverifikasi
+    const currentUserStr = localStorage.getItem('currentUser');
+    
+    if (!currentUserStr) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      
+      if (!currentUser.loggedIn) {
+        router.push('/login');
+        return;
+      }
+
+      if (!currentUser.pinVerified) {
+        router.push('/pin');
+        return;
+      }
+
+      setIsChecking(false);
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      router.push('/login');
+    }
+  }, [router]);
+
   const [selectedCategory, setSelectedCategory] = useState('Minuman');
   const [cartItems, setCartItems] = useState<CartItem[]>([
     {
@@ -52,6 +85,13 @@ export default function POSPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet only
   const [showCashierDropdown, setShowCashierDropdown] = useState(false);
   const [selectedCashier, setSelectedCashier] = useState({ id: '1', name: 'Alfath Aditya', initials: 'AA' });
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionData, setTransactionData] = useState<{
+    id: string;
+    total: number;
+    paid: number;
+    change: number;
+  } | null>(null);
   
   const cashiers = [
     { id: '1', name: 'Alfath Aditya', initials: 'AA' },
@@ -282,8 +322,41 @@ export default function POSPage() {
       saveToLocalList('customers', newCustomer);
     }
 
-    setCartItems([]);
+    // Generate transaction ID and save transaction data
+    const transactionId = `TRX${Date.now()}`;
+    const finalPaidAmount = payMethod === 'cash' ? paidAmount : total;
+    const finalChange = Math.max(0, finalPaidAmount - total);
+
+    setTransactionData({
+      id: transactionId,
+      total,
+      paid: finalPaidAmount,
+      change: finalChange,
+    });
+
+    // Save transaction to localStorage
+    const transaction = {
+      id: transactionId,
+      date: new Date().toISOString(),
+      total,
+      paymentMethod: methodLabel,
+      status: 'Completed',
+      items: cartItems.map(item => ({
+        name: item.name,
+        qty: item.quantity,
+        price: item.price,
+      })),
+    };
+    saveToLocalList('transactions', transaction);
+
+    // Close payment modal and show success modal
     setShowPayModal(false);
+    setShowSuccessModal(true);
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setCartItems([]);
     setShowCart(false);
     setIsDebt(false);
     setAddManualCustomer(false);
@@ -292,6 +365,12 @@ export default function POSPage() {
     setPaidAmount(0);
     setDigitalMethod('OVO');
     setPayMethod('cash');
+    setTransactionData(null);
+  };
+
+  const handlePrintReceipt = () => {
+    // Print receipt functionality
+    window.print();
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0);
@@ -299,6 +378,18 @@ export default function POSPage() {
   const tax = 1000;
   const total = subtotal - discount + tax;
   const change = Math.max(0, paidAmount - total);
+
+  // Show loading while checking authentication
+  if (isChecking) {
+    return (
+      <div className="flex h-screen bg-gray-50 items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
+          <p className="text-gray-600">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 relative">
@@ -729,6 +820,78 @@ export default function POSPage() {
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddToCart}
         />
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && transactionData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 md:p-4 lg:p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+            {/* Header with printer icon */}
+            <div className="relative p-6 pb-4">
+              <button
+                onClick={handlePrintReceipt}
+                className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer active:scale-95"
+              >
+                <i className="ri-printer-line text-xl text-gray-600"></i>
+              </button>
+              
+              {/* Success indicator */}
+              <div className="flex justify-center mb-4">
+                <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                  <i className="ri-check-line text-4xl text-white"></i>
+                </div>
+              </div>
+              
+              {/* Title */}
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+                Transaksi Berhasil!
+              </h2>
+              
+              {/* Transaction ID */}
+              <p className="text-sm text-gray-600 text-center mb-6">
+                ID: {transactionData.id}
+              </p>
+              
+              {/* Transaction Summary */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-base font-medium text-gray-700">Total Tagihan</span>
+                  <span className="text-base font-bold text-gray-900">Rp {transactionData.total.toLocaleString()}</span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-base font-medium text-gray-700">Pembayaran</span>
+                  <span className="text-base font-bold text-gray-900">Rp {transactionData.paid.toLocaleString()}</span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base font-medium text-gray-700">Kembalian</span>
+                  <span className={`text-base font-bold ${transactionData.change > 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                    Rp {transactionData.change.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="p-6 pt-4 flex gap-3">
+              <button
+                onClick={handlePrintReceipt}
+                className="flex-1 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 active:scale-95"
+              >
+                <i className="ri-printer-line text-lg"></i>
+                Cetak Struk
+              </button>
+              <button
+                onClick={handleCloseSuccessModal}
+                className="flex-1 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 active:scale-95"
+              >
+                <i className="ri-check-line text-lg"></i>
+                Selesai
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showPayModal && (

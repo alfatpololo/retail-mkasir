@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface MenuItem {
   icon: string;
@@ -43,12 +43,20 @@ const sections: MenuSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
     // handle paths with query params by matching pathname part
     const basePath = path.split('?')[0];
     return pathname === basePath;
+  };
+
+  const handleLogout = () => {
+    // Clear session
+    localStorage.removeItem('currentUser');
+    // Redirect to login
+    router.push('/login');
   };
 
   return (
@@ -118,10 +126,7 @@ export default function Sidebar() {
       {/* Logout Button */}
       <div className="pt-3 md:pt-4 border-t border-gray-200 mt-auto">
         <button
-          onClick={() => {
-            // Handle logout logic here
-            console.log('Logout clicked');
-          }}
+          onClick={handleLogout}
           className="w-full flex items-center gap-2.5 md:gap-3 px-2.5 md:px-3 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-medium text-red-600 hover:bg-red-50 transition-all cursor-pointer"
         >
           <span className="ri-logout-box-line text-base md:text-lg"></span>

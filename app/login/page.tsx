@@ -3,14 +3,67 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ phone, password });
+    setIsLoading(true);
+
+    // Validasi nomor HP
+    if (!phone || phone.length < 10) {
+      alert('Nomor HP tidak valid');
+      setIsLoading(false);
+      return;
+    }
+
+    // Validasi password
+    if (!password || password.length < 6) {
+      alert('Password minimal 6 karakter');
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulasi validasi nomor HP dan password dari localStorage
+    try {
+      const storedUsers = localStorage.getItem('users');
+      const users = storedUsers ? JSON.parse(storedUsers) : [];
+      
+      const user = users.find((u: any) => u.phone === phone);
+      
+      if (!user) {
+        alert('Nomor HP tidak terdaftar. Silakan daftar terlebih dahulu.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Validasi password
+      if (user.password !== password) {
+        alert('Password salah. Silakan coba lagi.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Simpan data user yang login
+      localStorage.setItem('currentUser', JSON.stringify({
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        loggedIn: true,
+      }));
+
+      // Redirect ke halaman PIN
+      router.push('/pin');
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Terjadi kesalahan saat login');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,10 +84,12 @@ export default function LoginPage() {
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
               placeholder="08xxxxxxxxxx"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
+              minLength={10}
+              maxLength={13}
             />
           </div>
 
@@ -47,14 +102,16 @@ export default function LoginPage() {
               placeholder="********"
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
+              minLength={6}
             />
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-orange-gradient hover:opacity-95 active:scale-[0.99] transition"
+            disabled={isLoading}
+            className="w-full py-3 rounded-lg text-sm font-semibold text-white btn-orange-gradient hover:opacity-95 active:scale-[0.99] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Masuk
+            {isLoading ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
 
