@@ -20,7 +20,7 @@ export default function BusinessProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64">
+    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
       <Sidebar />
       
       <div className="max-w-4xl mx-auto p-6">

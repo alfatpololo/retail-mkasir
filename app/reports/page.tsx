@@ -180,65 +180,65 @@ export default function ReportsPage() {
   const totalDiskon = summary?.total_diskon ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64 pb-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Laporan Penjualan
             </h1>
             <p className="text-gray-600 text-sm">
-              Analisis dan ringkasan penjualan.
+              Analisis dan ringkasan penjualan
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <span className="ri-receipt-line text-blue-600 text-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md">
+              <span className="ri-receipt-line text-white text-xl" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total Transaksi</p>
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Transaksi</p>
               <p className="text-xl font-bold text-gray-900">
                 {totalTransaksi}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <span className="ri-money-dollar-circle-line text-emerald-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
+              <span className="ri-money-dollar-circle-line text-white text-xl" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total Pendapatan</p>
-              <p className="text-xl font-bold text-emerald-700">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Pendapatan</p>
+              <p className="text-xl font-bold text-emerald-600">
                 {formatCurrency(totalPendapatan)}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <span className="ri-box-3-line text-violet-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center shadow-md">
+              <span className="ri-box-3-line text-white text-xl" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total Item Terjual</p>
-              <p className="text-xl font-bold text-violet-700">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Item Terjual</p>
+              <p className="text-xl font-bold text-violet-600">
                 {totalItemTerjual}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <span className="ri-percent-line text-amber-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+              <span className="ri-percent-line text-white text-xl" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Total Diskon</p>
-              <p className="text-xl font-bold text-amber-700">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Diskon</p>
+              <p className="text-xl font-bold text-amber-600">
                 {formatCurrency(totalDiskon)}
               </p>
             </div>

@@ -117,12 +117,33 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+
+  // Reset sidebar state saat window resize untuk memastikan konsistensi
+  useEffect(() => {
+    const handleResize = () => {
+      // Jika window menjadi 2xl atau lebih besar, reset tablet sidebar
+      if (window.innerWidth >= 1536) {
+        setSidebarCollapsed(true);
+      }
+      // Jika window menjadi md atau lebih kecil, reset mobile sidebar
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
         setError(null);
+        // Reset selected transaction ketika filter/search/page berubah
+        setSelectedTransaction(null);
 
         const jwtPin =
           typeof window !== 'undefined'
@@ -243,9 +264,16 @@ export default function TransactionsPage() {
         setTransactions(mapped);
         setTotalItems(json.data.total);
         setTotalPages(json.data.total_pages);
-
-        if (!selectedTransaction && mapped.length > 0) {
-          setSelectedTransaction(mapped[0]);
+        
+        // Reset selected transaction jika tidak ada transaksi atau transaksi yang dipilih tidak ada lagi di list
+        if (mapped.length === 0) {
+          setSelectedTransaction(null);
+        } else {
+          setSelectedTransaction((prev) => {
+            if (!prev) return null;
+            const stillExists = mapped.some(t => t.id === prev.id);
+            return stillExists ? prev : null;
+          });
         }
       } catch (err) {
         const message =
@@ -381,26 +409,105 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64 pb-10">
-      <Sidebar />
-      
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              Riwayat Transaksi
-            </h1>
-            <p className="text-gray-600 text-sm">
-              Pantau transaksi penjualan lengkap dengan filter tanggal dan
-              pencarian.
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative pb-10">
+      {/* Static sidebar for desktop (2xl up - very large screens only) */}
+      <div className="hidden 2xl:block fixed left-0 top-0 bottom-0 w-64 z-50">
+        <Sidebar />
+      </div>
+
+      {/* Sidebar overlay for tablet (md, lg, xl - all tablets including landscape) */}
+      {!sidebarCollapsed && (
+        <div className="hidden md:block 2xl:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarCollapsed(true)}></div>
+          <div className="absolute left-0 top-0 bottom-0 w-[10.5rem] md:w-[13rem] lg:w-[15rem] xl:w-[17rem] bg-white shadow-xl z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
           </div>
         </div>
+      )}
 
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-7">
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200 space-y-4">
+      {/* Show Sidebar Indicator for Tablet (md, lg, xl - all tablets including landscape, when collapsed) */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="hidden md:flex 2xl:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
+      )}
+      
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSidebar(false)}></div>
+          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
+          </div>
+        </div>
+      )}
+
+      {/* Show Sidebar Indicator for Mobile (when collapsed) */}
+      {!showSidebar && (
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="md:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group flex"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
+      )}
+
+      <div className="w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 2xl:pl-72 2xl:pr-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg">
+              <i className="ri-file-list-3-line text-white text-xl"></i>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
+                Riwayat Transaksi
+              </h1>
+              <p className="text-gray-600 text-xs sm:text-sm">
+                Pantau transaksi penjualan lengkap dengan filter tanggal dan pencarian
+              </p>
+            </div>
+          </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className={selectedTransaction ? "lg:col-span-7" : "lg:col-span-12"}>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 overflow-hidden">
+                <div className="p-5 md:p-6 border-b border-gray-200 space-y-4">
                 <div className="flex flex-col md:flex-row gap-3">
                   <div className="flex-1 relative">
                     <span className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></span>
@@ -412,7 +519,7 @@ export default function TransactionsPage() {
                         setPage(1);
                         setSearchQuery(e.target.value);
                       }}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full pl-10 pr-4 py-3 sm:py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -423,7 +530,7 @@ export default function TransactionsPage() {
                         setPage(1);
                         setCustomStart(e.target.value);
                       }}
-                      className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] flex-1"
                     />
                     <span className="text-xs text-gray-400">s/d</span>
                     <input
@@ -433,7 +540,7 @@ export default function TransactionsPage() {
                         setPage(1);
                         setCustomEnd(e.target.value);
                       }}
-                      className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px] flex-1"
                     />
                   </div>
                 </div>
@@ -460,91 +567,99 @@ export default function TransactionsPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <span className="ri-receipt-line text-blue-600 text-lg"></span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200/50 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md">
+                      <span className="ri-receipt-line text-white text-xl"></span>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600">Total Transaksi</p>
-                      <p className="text-sm font-bold text-blue-700">
+                      <p className="text-xs font-medium text-gray-600 mb-1">Total Transaksi</p>
+                      <p className="text-lg font-bold text-blue-700">
                         {totalItems}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50">
-                    <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <span className="ri-money-dollar-circle-line text-amber-600 text-lg"></span>
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/50 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+                      <span className="ri-money-dollar-circle-line text-white text-xl"></span>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs font-medium text-gray-600 mb-1">
                         Total Pendapatan
                       </p>
-                      <p className="text-sm font-bold text-amber-700">
+                      <p className="text-lg font-bold text-amber-700">
                         {formatCurrency(totalGrand)}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <span className="ri-line-chart-line text-emerald-600 text-lg"></span>
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/50 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
+                      <span className="ri-line-chart-line text-white text-xl"></span>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs font-medium text-gray-600 mb-1">
                         Total Keuntungan
                       </p>
-                      <p className="text-sm font-bold text-emerald-700">
+                      <p className="text-lg font-bold text-emerald-700">
                         {formatCurrency(totalProfit)}
                       </p>
                     </div>
-          </div>
-        </div>
-      </div>
-
-              {error && (
-                <div className="px-4 py-3 text-sm text-red-600 bg-red-50 border-t border-red-100">
-                  {error}
+                  </div>
                 </div>
-              )}
-
-              {loading && !error && (
-                <div className="px-4 py-3 text-sm text-gray-500 border-t border-gray-100">
-                  Memuat data transaksi...
                 </div>
-              )}
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-y border-gray-200">
+                {error && (
+                  <div className="px-5 py-4 text-sm text-red-600 bg-red-50 border-t border-red-100 flex items-center gap-2">
+                    <i className="ri-error-warning-line"></i>
+                    {error}
+                  </div>
+                )}
+
+                {loading && !error && (
+                  <div className="px-5 py-8 text-center">
+                    <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                      Memuat data transaksi...
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <div className="max-h-[calc(100vh-28rem)] overflow-y-auto scrollbar-hide">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-y border-gray-200 sticky top-0 z-20">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Tanggal
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         No. Transaksi
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Total
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Pelanggan
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Metode
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-5 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Aksi
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 bg-white">
                     {!loading && transactions.length === 0 && (
                       <tr>
                         <td
                           colSpan={6}
-                          className="px-4 py-6 text-center text-sm text-gray-500"
+                          className="px-5 py-12 text-center"
                         >
-                          Tidak ada transaksi.
+                          <div className="flex flex-col items-center gap-2">
+                            <i className="ri-file-list-3-line text-4xl text-gray-300"></i>
+                            <p className="text-sm font-medium text-gray-500">Tidak ada transaksi</p>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -554,12 +669,12 @@ export default function TransactionsPage() {
                       return (
                         <tr
                           key={transaction.id}
-                          className={`cursor-pointer hover:bg-gray-50 ${
-                            isSelected ? 'bg-emerald-50/60' : ''
+                          className={`cursor-pointer transition-colors hover:bg-emerald-50/30 ${
+                            isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : ''
                           }`}
                           onClick={() => setSelectedTransaction(transaction)}
                         >
-                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          <td className="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">
                             <div className="flex flex-col">
                               <span className="font-medium">
                                 {formatDate(transaction.tanggal)}
@@ -576,40 +691,47 @@ export default function TransactionsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                          <td className="px-5 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">
                             {transaction.nomorTransaksi}
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap text-right">
+                          <td className="px-5 py-4 text-sm font-bold text-emerald-600 whitespace-nowrap text-right">
                             {formatCurrency(transaction.grandTotal)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          <td className="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {transaction.pelanggan}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                            {transaction.metodePembayaran}
+                          <td className="px-5 py-4 text-sm whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {transaction.metodePembayaran}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-xs text-blue-600 text-center whitespace-nowrap">
-                            Detail
+                          <td className="px-5 py-4 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer">
+                              <i className="ri-eye-line"></i>
+                              Detail
+                            </span>
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
-                </table>
-              </div>
+                    </table>
+                  </div>
+                </div>
 
-              <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-xs text-gray-600">
-                  Menampilkan {transactions.length} dari {totalItems} transaksi
-                  (halaman {page} dari {totalPages})
+                <div className="p-5 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-sm text-gray-600">
+                  Menampilkan <span className="font-semibold text-gray-900">{transactions.length}</span> dari <span className="font-semibold text-gray-900">{totalItems}</span> transaksi
+                  <span className="hidden sm:inline"> (halaman {page} dari {totalPages})</span>
                 </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     disabled={page === 1 || loading}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 active:bg-white sm:hover:bg-white active:border-gray-400 sm:hover:border-gray-400 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
                   >
+                    <i className="ri-arrow-left-line mr-1"></i>
                     Sebelumnya
                   </button>
                 <button
@@ -618,18 +740,20 @@ export default function TransactionsPage() {
                       setPage((prev) => Math.min(totalPages, prev + 1))
                     }
                     disabled={page === totalPages || loading}
-                    className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-medium hover:bg-emerald-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium active:bg-emerald-600 sm:hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-h-[44px] touch-manipulation"
                   >
                     Berikutnya
-                </button>
+                    <i className="ri-arrow-right-line ml-1"></i>
+                  </button>
                 </div>
-              </div>
+                </div>
               </div>
             </div>
 
-          <div className="col-span-5">
-            <div className="bg-white rounded-xl border border-gray-200 h-full flex flex-col">
-              <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+            {selectedTransaction && (
+              <div className="hidden lg:block lg:col-span-5">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 h-full flex flex-col sticky top-6">
+                  <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-emerald-50/50 to-transparent flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="ri-receipt-line text-emerald-600 text-lg"></span>
                 <div>
@@ -645,9 +769,9 @@ export default function TransactionsPage() {
                   type="button"
                   onClick={handlePrintReceipt}
                   disabled={!selectedTransaction}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
                 >
-                  <span className="ri-printer-line text-sm"></span>
+                  <i className="ri-printer-line"></i>
                   Cetak Struk
                 </button>
                 </div>
@@ -655,9 +779,9 @@ export default function TransactionsPage() {
               {selectedTransaction ? (
                 <div
                   id="transactions-receipt-print"
-                  className="flex-1 overflow-y-auto px-6 py-5 space-y-4"
+                  className="flex-1 overflow-y-auto px-6 py-6 space-y-5"
                 >
-                  <div className="text-center border-b border-dashed border-gray-300 pb-4">
+                  <div className="text-center border-b border-dashed border-gray-300 pb-5">
                     <p className="text-base font-bold text-gray-900 tracking-wide">
                       STRUK TRANSAKSI
                     </p>
@@ -778,12 +902,13 @@ export default function TransactionsPage() {
                     Klik salah satu baris transaksi di sebelah kiri untuk
                     melihat detail struk.
                   </p>
+                </div>
+                  )}
+                </div>
               </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
-    </div>
   );
 }

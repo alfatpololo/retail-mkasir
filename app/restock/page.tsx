@@ -186,7 +186,7 @@ export default function RestockPage() {
   }, [page, startDate, endDate, status]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64">
+    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
       <Sidebar />
 
       <div className="max-w-7xl mx-auto p-6">

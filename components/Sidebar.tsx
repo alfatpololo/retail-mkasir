@@ -57,71 +57,6 @@ const sections: MenuSection[] = [
     ],
   },
   {
-    title: 'Inventory',
-    items: [
-      {
-        icon: 'ri-shopping-bag-3-line',
-        label: 'Pembelian Stok',
-        path: '/restock',
-      },
-      {
-        icon: 'ri-swap-line',
-        label: 'Kelola Stok',
-        path: '/stock-conversion',
-      },
-      {
-        icon: 'ri-history-line',
-        label: 'Riwayat Stok',
-        path: '/stock-history',
-      },
-      {
-        icon: 'ri-clipboard-line',
-        label: 'Stok Opname',
-        path: '/stock-opname',
-      },
-    ],
-  },
-  {
-    title: 'Laporan',
-    items: [
-      {
-        icon: 'ri-file-list-3-line',
-        label: 'Laporan Penjualan',
-        path: '/reports',
-      },
-      {
-        icon: 'ri-wallet-3-line',
-        label: 'Ringkasan Pembayaran',
-        path: '/payment-summary',
-      },
-      {
-        icon: 'ri-star-smile-line',
-        label: 'Produk Terlaris',
-        path: '/bestseller-products',
-      },
-      {
-        icon: 'ri-team-line',
-        label: 'Laporan Pelanggan',
-        path: '/customer-report',
-      },
-      {
-        icon: 'ri-user-3-line',
-        label: 'Operasional Kasir',
-        path: '/cashier-operations',
-      },
-      {
-        icon: 'ri-money-dollar-circle-line',
-        label: 'Kas Harian',
-        path: '/daily-cash',
-      },
-      {
-        icon: 'ri-bar-chart-2-line',
-        label: 'Laba Rugi',
-        path: '/profit-loss',
-      },
-    ],
-  },
-  {
     title: 'Setting',
     items: [
       {
@@ -148,7 +83,11 @@ const sections: MenuSection[] = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOverlay?: boolean;
+}
+
+export default function Sidebar({ isOverlay = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -167,7 +106,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-[10.5rem] md:w-56 lg:w-64 bg-white border-r border-gray-200 flex flex-col py-4 md:py-5 lg:py-6 px-3 md:px-4 fixed left-0 top-0 bottom-0 z-50">
+    <aside className={`${isOverlay ? 'w-full' : 'w-[10.5rem] md:w-56 lg:w-64'} bg-white ${isOverlay ? '' : 'border-r border-gray-200'} flex flex-col py-4 md:py-5 lg:py-6 px-3 md:px-4 ${isOverlay ? 'relative h-full' : 'fixed left-0 top-0 bottom-0 z-50'}`}>
       <Link href="/" className="mb-6 md:mb-7 lg:mb-8 flex flex-col items-center gap-1.5 md:gap-2">
         <div className="w-full bg-emerald-500 rounded-lg md:rounded-xl p-3 md:p-4 flex flex-col items-center gap-1 relative mx-2 md:mx-3">
           <img

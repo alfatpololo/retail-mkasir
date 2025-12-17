@@ -224,71 +224,71 @@ export default function StockHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Riwayat Stok
           </h1>
-          <p className="text-gray-600">Pantau pergerakan stok barang Anda</p>
+          <p className="text-gray-600 text-sm">Pantau pergerakan stok barang Anda</p>
         </div>
 
         {/* Statistik Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <span className="ri-file-list-3-line text-emerald-600 text-xl"></span>
+              <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
+                <span className="ri-file-list-3-line text-white text-xl"></span>
               </div>
             </div>
-            <div className="text-xs text-gray-500 mb-1">Total Transaksi</div>
+            <div className="text-xs font-medium text-gray-600 mb-1">Total Transaksi</div>
             <div className="text-2xl font-bold text-emerald-600">
               {summary.total_transaksi}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                <span className="ri-arrow-down-line text-green-600 text-xl"></span>
+              <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
+                <span className="ri-arrow-down-line text-white text-xl"></span>
               </div>
             </div>
-            <div className="text-xs text-gray-500 mb-1">Stok Masuk</div>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-xs font-medium text-gray-600 mb-1">Stok Masuk</div>
+            <div className="text-2xl font-bold text-emerald-600">
               {summary.stok_masuk}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                <span className="ri-arrow-up-line text-red-600 text-xl"></span>
+              <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shadow-md">
+                <span className="ri-arrow-up-line text-white text-xl"></span>
               </div>
             </div>
-            <div className="text-xs text-gray-500 mb-1">Stok Keluar</div>
+            <div className="text-xs font-medium text-gray-600 mb-1">Stok Keluar</div>
             <div className="text-2xl font-bold text-red-600">
               {summary.stok_keluar}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                <span className="ri-edit-line text-orange-600 text-xl"></span>
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+                <span className="ri-edit-line text-white text-xl"></span>
               </div>
             </div>
-            <div className="text-xs text-gray-500 mb-1">Penyesuaian</div>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-xs font-medium text-gray-600 mb-1">Penyesuaian</div>
+            <div className="text-2xl font-bold text-amber-600">
               {summary.penyesuaian}
             </div>
           </div>
         </div>
 
         {/* Filter Section */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 md:p-6 mb-6">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
@@ -621,7 +621,6 @@ export default function StockHistoryPage() {
               </p>
             </div>
           )}
-
       </div>
     </div>
   );

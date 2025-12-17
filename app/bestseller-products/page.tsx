@@ -171,7 +171,7 @@ export default function BestsellerProductsPage() {
   const kategoriOptions = Array.from(new Set(rows.map((row) => row.kategori)));
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64 pb-10">
+    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-0 2xl:pl-64 pb-10">
       <Sidebar />
 
       <div className="max-w-7xl mx-auto p-6">

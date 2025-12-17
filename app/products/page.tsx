@@ -106,6 +106,8 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
 
   const [newProduct, setNewProduct] = useState({
     sku: '',
@@ -255,6 +257,23 @@ export default function ProductsPage() {
   // Ambil kategori produk sekali saat komponen pertama kali dirender
   useEffect(() => {
     fetchCategories();
+  }, []);
+
+  // Reset sidebar state saat window resize untuk memastikan konsistensi
+  useEffect(() => {
+    const handleResize = () => {
+      // Jika window menjadi 2xl atau lebih besar, reset tablet sidebar
+      if (window.innerWidth >= 1536) {
+        setSidebarCollapsed(true);
+      }
+      // Jika window menjadi md atau lebih kecil, reset mobile sidebar
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Jalankan / hentikan kamera ketika modal scanner dibuka / ditutup
@@ -653,28 +672,108 @@ export default function ProductsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-64">
-      <Sidebar />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
+      {/* Static sidebar for desktop (2xl up - very large screens only) */}
+      <div className="hidden 2xl:block fixed left-0 top-0 bottom-0 w-64 z-50">
+        <Sidebar />
+      </div>
+
+      {/* Sidebar overlay for tablet (md, lg, xl - all tablets including landscape) */}
+      {!sidebarCollapsed && (
+        <div className="hidden md:block 2xl:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarCollapsed(true)}></div>
+          <div className="absolute left-0 top-0 bottom-0 w-[10.5rem] md:w-[13rem] lg:w-[15rem] xl:w-[17rem] bg-white shadow-xl z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
+          </div>
+        </div>
+      )}
+
+      {/* Show Sidebar Indicator for Tablet (md, lg, xl - all tablets including landscape, when collapsed) */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="hidden md:flex 2xl:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
+      )}
       
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Product List</h1>
-            <p className="text-gray-600">
-              {loading ? 'Memuat produk...' : `${totalItems} products in inventory`}
-            </p>
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSidebar(false)}></div>
+          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
+          </div>
+        </div>
+      )}
+
+      {/* Show Sidebar Indicator for Mobile (when collapsed) */}
+      {!showSidebar && (
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="md:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group flex"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
+      )}
+
+      <div className="w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 2xl:pl-72 2xl:pr-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg">
+              <i className="ri-box-3-line text-white text-xl"></i>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Daftar Produk</h1>
+              <p className="text-gray-600 text-xs sm:text-sm">
+                {loading ? 'Memuat produk...' : `${totalItems} produk dalam inventori`}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-2"
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
           >
-            <span className="ri-add-line w-5 h-5 flex items-center justify-center"></span>
-            Input Product
+            <i className="ri-add-line text-base sm:text-lg"></i>
+            Input Produk
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex-1 relative">
               <span className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></span>
               <input
@@ -682,13 +781,13 @@ export default function ProductsPage() {
                 placeholder="Search by name or SKU..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-10 pr-4 py-3 sm:py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
               />
             </div>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2.5 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="px-4 py-3 sm:py-2.5 pr-8 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[44px]"
             >
               <option value="name">Sort by Name</option>
               <option value="price-low">Price: Low to High</option>
@@ -698,39 +797,47 @@ export default function ProductsPage() {
           </div>
 
           {error && (
-            <div className="px-6 py-4 text-red-500 text-sm border-b border-gray-200">
+            <div className="px-6 py-4 text-red-600 text-sm border-b border-red-100 bg-red-50 flex items-center gap-2">
+              <i className="ri-error-warning-line"></i>
               {error}
             </div>
           )}
 
           {loading && !error && (
-            <div className="px-6 py-6 text-gray-500 text-sm">
-              Memuat data produk...
+            <div className="px-6 py-12 text-center">
+              <div className="inline-flex items-center gap-2 text-gray-500">
+                <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                Memuat data produk...
+              </div>
             </div>
           )}
 
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="max-h-[calc(100vh-22rem)] overflow-y-auto scrollbar-hide">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0 z-20">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">SKU</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Stock</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">Produk</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">SKU</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">Kategori</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">Harga</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">Stok</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-100 bg-white">
                 {!loading && !error && filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-6 text-center text-sm text-gray-500">
-                      Tidak ada produk.
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <i className="ri-box-3-line text-4xl text-gray-300"></i>
+                        <p className="text-sm font-medium text-gray-500">Tidak ada produk</p>
+                      </div>
                     </td>
                   </tr>
                 )}
                 {!loading && !error && filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
+                  <tr key={product.id} className="hover:bg-emerald-50/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center">
@@ -750,41 +857,43 @@ export default function ProductsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600">{product.sku}</span>
+                      <span className="text-sm text-gray-600 font-mono">{product.sku}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600">{product.category}</span>
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        {product.category}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-bold text-gray-900">Rp {product.price.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-emerald-600">Rp {product.price.toLocaleString()}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        product.stock > 100 ? 'bg-green-100 text-green-700' :
-                        product.stock > 50 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                        product.stock > 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        product.stock > 50 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-red-50 text-red-700 border-red-200'
                       }`}>
-                        {product.stock} units
+                        {product.stock} unit
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex gap-2">
                         <button 
                           onClick={() => setEditingProduct(product)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors cursor-pointer"
                         >
-                          <span className="ri-edit-line w-4 h-4 flex items-center justify-center text-gray-600"></span>
+                          <i className="ri-edit-line text-base"></i>
                         </button>
                         <button 
                           onClick={() => handleDeleteProduct(product.id)}
                           disabled={deletingProductId === product.id}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Hapus produk"
                         >
                           {deletingProductId === product.id ? (
-                            <span className="ri-loader-4-line w-4 h-4 flex items-center justify-center text-red-500 animate-spin"></span>
+                            <i className="ri-loader-4-line text-base animate-spin"></i>
                           ) : (
-                            <span className="ri-delete-bin-line w-4 h-4 flex items-center justify-center text-red-500"></span>
+                            <i className="ri-delete-bin-line text-base"></i>
                           )}
                         </button>
                       </div>
@@ -792,33 +901,36 @@ export default function ProductsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
 
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="p-5 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-600">
               {searchQuery 
-                ? `Menampilkan ${filteredProducts.length} hasil pencarian dari ${totalItems} produk`
-                : `Menampilkan ${products.length} dari ${totalItems} produk (halaman ${page} dari ${totalPages})`
+                ? <>Menampilkan <span className="font-semibold text-gray-900">{filteredProducts.length}</span> hasil pencarian dari <span className="font-semibold text-gray-900">{totalItems}</span> produk</>
+                : <>Menampilkan <span className="font-semibold text-gray-900">{products.length}</span> dari <span className="font-semibold text-gray-900">{totalItems}</span> produk <span className="hidden sm:inline">(halaman {page} dari {totalPages})</span></>
               }
             </p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page === 1 || loading}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={page === totalPages || loading}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page === 1 || loading}
+                  className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 active:bg-gray-50 sm:hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+                >
+                  <i className="ri-arrow-left-line mr-1"></i>
+                  Sebelumnya
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page === totalPages || loading}
+                  className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium active:bg-emerald-600 sm:hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-h-[44px] touch-manipulation"
+                >
+                  Berikutnya
+                  <i className="ri-arrow-right-line ml-1"></i>
+                </button>
             </div>
           </div>
         </div>
@@ -1278,14 +1390,14 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors cursor-pointer whitespace-nowrap"
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium active:bg-gray-200 sm:hover:bg-gray-200 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-semibold active:bg-emerald-600 sm:hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
                 >
                   {isSubmitting ? (
                     <>

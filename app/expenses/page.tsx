@@ -4,7 +4,7 @@ import Sidebar from '@/components/Sidebar';
 
 export default function ExpensesPage() {
   return (
-    <div className="min-h-screen bg-gray-50 pl-64">
+    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
       <Sidebar />
 
       <div className="max-w-5xl mx-auto px-6 py-8">

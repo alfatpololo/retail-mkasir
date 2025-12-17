@@ -172,6 +172,23 @@ export default function POSPage() {
     }
   }, [router]);
 
+  // Reset sidebar state saat window resize untuk memastikan konsistensi
+  useEffect(() => {
+    const handleResize = () => {
+      // Jika window menjadi 2xl atau lebih besar, reset tablet sidebar
+      if (window.innerWidth >= 1536) {
+        setSidebarCollapsed(true);
+      }
+      // Jika window menjadi md atau lebih kecil, reset mobile sidebar
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Setelah cek login & PIN selesai, cek status buka/tutup kasir
   useEffect(() => {
     if (isChecking) return;
@@ -239,8 +256,8 @@ export default function POSPage() {
   const [manualCustomerName, setManualCustomerName] = useState('');
   const [manualCustomerPhone, setManualCustomerPhone] = useState('');
   const [showCart, setShowCart] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false); // mobile
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet only
+  const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
   const [showCashierDropdown, setShowCashierDropdown] = useState(false);
   const [selectedCashier, setSelectedCashier] = useState<CurrentCashier | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -734,41 +751,87 @@ export default function POSPage() {
 
   return (
     <div className="flex h-screen bg-gray-50 relative">
-      {/* Static sidebar for desktop (xl up) */}
-      <div className="hidden xl:block">
+      {/* Static sidebar for desktop (2xl up - very large screens only) */}
+      <div className="hidden 2xl:block fixed left-0 top-0 bottom-0 w-64 z-50">
         <Sidebar />
       </div>
 
-      {/* Sidebar overlay for tablet (md only) */}
+      {/* Sidebar overlay for tablet (md, lg, xl - all tablets including landscape) */}
       {!sidebarCollapsed && (
-        <div className="hidden md:block xl:hidden fixed inset-0 z-40">
+        <div className="hidden md:block 2xl:hidden fixed inset-0 z-40">
           <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarCollapsed(true)}></div>
-          <div className="absolute left-0 top-0 bottom-0 w-[10.5rem] md:w-[12rem] bg-white shadow-xl">
-            <Sidebar />
+          <div className="absolute left-0 top-0 bottom-0 w-[10.5rem] md:w-[13rem] lg:w-[15rem] xl:w-[17rem] bg-white shadow-xl z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
           </div>
         </div>
+      )}
+
+      {/* Show Sidebar Indicator for Tablet (md, lg, xl - all tablets including landscape, when collapsed) */}
+      {sidebarCollapsed && (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="hidden md:flex 2xl:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
       )}
       
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div className="md:hidden fixed inset-0 z-40">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowSidebar(false)}></div>
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white z-50">
-            <Sidebar />
+          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white z-50 overflow-y-auto">
+            <Sidebar isOverlay={true} />
           </div>
         </div>
       )}
 
+      {/* Show Sidebar Indicator for Mobile (when collapsed) */}
+      {!showSidebar && (
+        <button
+          onClick={() => setShowSidebar(true)}
+          className="md:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 w-12 h-20 bg-white rounded-r-full items-center justify-center shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 group flex"
+          aria-label="Show sidebar"
+        >
+          <div className="flex items-center -space-x-3">
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0s'
+              }}
+            ></i>
+            <i 
+              className="ri-arrow-right-s-line text-emerald-400 text-2xl group-hover:text-emerald-500 transition-colors" 
+              style={{ 
+                animation: 'arrowGlow 1.5s ease-in-out infinite',
+                animationDelay: '0.3s'
+              }}
+            ></i>
+          </div>
+        </button>
+      )}
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-0 xl:ml-64">
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-0 2xl:ml-64">
         {/* Mobile Header */}
         <div className="md:hidden bg-white border-b px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={() => setShowSidebar(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100"
-          >
-            <i className="ri-menu-line text-xl text-gray-700"></i>
-          </button>
           <div className="flex-1 relative">
             <input
               type="text"
@@ -828,12 +891,6 @@ export default function POSPage() {
         {/* Tablet & Desktop Header */}
         <div className="hidden md:block bg-white border-b px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-4">
           <div className="flex items-center gap-2 md:gap-3">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden md:flex xl:hidden w-10 h-10 md:w-10 md:h-10 items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50"
-            >
-              <i className={`ri-${sidebarCollapsed ? 'menu-unfold' : 'menu-fold'}-line text-lg text-gray-700`}></i>
-            </button>
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -879,13 +936,21 @@ export default function POSPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50">
+              <div className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg border ${
+                printer.isConnected 
+                  ? 'border-gray-200 bg-gray-50' 
+                  : 'border-red-600 bg-red-50'
+              }`}>
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    printer.isConnected ? 'bg-emerald-500' : 'bg-red-500'
+                    printer.isConnected ? 'bg-emerald-500' : 'bg-red-600'
                   }`}
                 ></span>
-                <span className="text-[11px] font-medium text-gray-700">
+                <span className={`text-[11px] font-medium ${
+                  printer.isConnected 
+                    ? 'text-gray-700' 
+                    : 'text-red-700'
+                }`}>
                   {printer.isConnected
                     ? `Printer: ${printer.deviceName || 'Terhubung'}`
                     : 'Printer belum terhubung'}
@@ -1001,9 +1066,9 @@ export default function POSPage() {
                       <h4 className="font-bold text-gray-900 mb-1.1 md:mb-0.6 lg:mb-2 text-sm md:text-[11px] lg:text-base line-clamp-2 group-hover:text-emerald-600 transition-colors">
                         {product.name}
                       </h4>
-                      <div className="flex items-baseline gap-1.1 md:gap-1 lg:gap-2 mb-1.1 md:mb-0.9 lg:mb-2">
-                        <p className="text-base md:text-[13px] lg:text-xl font-bold text-gray-900">Rp {product.price.toLocaleString()}</p>
-                        <p className="text-[10px] md:text-[9px] lg:text-xs text-gray-400 line-through">Rp {product.originalPrice.toLocaleString()}</p>
+                      <div className="flex items-baseline gap-2 md:gap-1 lg:gap-2 mb-1.1 md:mb-0.9 lg:mb-2">
+                        <p className="text-base md:text-[10px] lg:text-xl font-bold text-gray-900">Rp {product.price.toLocaleString()}</p>
+                        <p className="text-[10px] md:text-[8px] lg:text-xs text-gray-400 line-through">Rp {product.originalPrice.toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 md:gap-1.5">
@@ -1112,25 +1177,25 @@ export default function POSPage() {
                   </div>
                   <p className="text-[9px] md:text-[9.5px] lg:text-xs text-gray-500 mb-0.25 md:mb-0.5 lg:mb-1.25">{item.unit}</p>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 md:gap-1 lg:gap-1.25 bg-white rounded-full px-1 border border-gray-200 shadow-sm">
+                    <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-sm overflow-hidden">
                       <button
                         onClick={() => updateQuantity(item.id, -1)}
-                        className="w-4.5 h-4.5 md:w-5 md:h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full hover:bg-gray-100 active:scale-95 text-gray-700"
+                        className="w-6 h-6 md:w-6 md:h-6 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-gray-100 active:scale-95 text-gray-700 transition-colors"
                       >
-                        <i className="ri-subtract-line text-[10px] md:text-[10px] lg:text-[11px]"></i>
+                        <i className="ri-subtract-line text-xs md:text-xs lg:text-sm"></i>
                       </button>
                       <input
                         type="number"
                         min={1}
                         value={item.quantity}
                         onChange={(e) => setQuantityValue(item.id, parseInt(e.target.value || '0', 10))}
-                        className="w-10 md:w-11 lg:w-12 text-center text-[10px] md:text-[11px] lg:text-sm font-semibold border-0 focus:ring-0 focus:outline-none appearance-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-10 md:w-10 lg:w-12 h-6 md:h-6 lg:h-7 text-center text-[10px] md:text-[11px] lg:text-sm font-semibold border-0 border-x border-gray-200 focus:ring-0 focus:outline-none appearance-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-transparent"
                       />
                       <button
                         onClick={() => updateQuantity(item.id, 1)}
-                        className="w-4.5 h-4.5 md:w-5 md:h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full text-white btn-orange-gradient active:scale-95"
+                        className="w-6 h-6 md:w-6 md:h-6 lg:w-7 lg:h-7 flex items-center justify-center text-white btn-orange-gradient active:scale-95 transition-colors"
                       >
-                        <i className="ri-add-line text-[10px] md:text-[10px] lg:text-[11px]"></i>
+                        <i className="ri-add-line text-xs md:text-xs lg:text-sm"></i>
                       </button>
                     </div>
                   </div>
@@ -1209,17 +1274,23 @@ export default function POSPage() {
                       <h4 className="font-semibold text-gray-900 text-sm mb-1">{item.name}</h4>
                       <p className="text-xs text-gray-500 mb-2">{item.unit}</p>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-sm overflow-hidden">
                           <button
                             onClick={() => updateQuantity(item.id, -1)}
-                            className="w-8 h-8 flex items-center justify-center bg-white border border-gray-300 rounded hover:bg-gray-100 active:scale-95"
+                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 active:scale-95 text-gray-700 transition-colors"
                           >
                             <i className="ri-subtract-line text-sm"></i>
                           </button>
-                          <span className="text-sm font-semibold w-8 text-center">{item.quantity}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => setQuantityValue(item.id, parseInt(e.target.value || '0', 10))}
+                            className="w-12 h-8 text-center text-sm font-semibold border-0 border-x border-gray-200 focus:ring-0 focus:outline-none appearance-none [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-transparent"
+                          />
                           <button
                             onClick={() => updateQuantity(item.id, 1)}
-                            className="w-8 h-8 flex items-center justify-center rounded text-white btn-orange-gradient active:scale-95"
+                            className="w-8 h-8 flex items-center justify-center text-white btn-orange-gradient active:scale-95 transition-colors"
                           >
                             <i className="ri-add-line text-sm"></i>
                           </button>
@@ -1245,7 +1316,6 @@ export default function POSPage() {
                   setShowPayModal(true);
                   setPayMethod('cash');
                   setIsDebt(false);
-                  setAddManualCustomer(false);
                   setManualCustomerName('');
                   setManualCustomerPhone('');
                   setPaidAmount(formatCurrencyInput(total));
@@ -1259,7 +1329,7 @@ export default function POSPage() {
       )}
 
       {/* Mobile Floating Pay Button */}
-      {cartItems.length > 0 && (
+      {cartItems.length > 0 && !showSidebar && (
         <div className="md:hidden fixed bottom-4 left-4 right-4 z-40">
           <button
             onClick={() => setShowCart(true)}
@@ -1691,24 +1761,164 @@ export default function POSPage() {
 
       {/* (Opsional) Modal Ringkasan Tutup Kasir jika hari berganti */}
       {showRingkasanTutup && tutupKasirData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl p-5 w-full max-w-md space-y-4">
-            <h2 className="text-lg font-bold text-gray-900">
-              Ringkasan Penjualan
-            </h2>
-            <p className="text-sm text-gray-600">
-              Total transaksi: {tutupKasirData.total_transaksi}
-            </p>
-            <p className="text-sm font-semibold text-gray-900">
-              Total: Rp {tutupKasirData.total.toLocaleString('id-ID')}
-            </p>
-            <div className="flex gap-2 pt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowRingkasanTutup(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            {/* Header dengan gradient */}
+            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 px-6 py-8 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                    <i className="ri-bar-chart-box-line text-3xl"></i>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Ringkasan Penjualan</h2>
+                    <p className="text-emerald-50 text-sm">Hari sebelumnya</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Total Transaksi */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border border-blue-200/50 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                      <i className="ri-receipt-line text-white text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-blue-700">Total Transaksi</p>
+                      <p className="text-xl font-bold text-blue-900">{tutupKasirData.total_transaksi}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Pendapatan */}
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-4 border border-emerald-200/50 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center">
+                      <i className="ri-money-dollar-circle-line text-white text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-emerald-700">Total Pendapatan</p>
+                      <p className="text-lg font-bold text-emerald-900">Rp {tutupKasirData.total.toLocaleString('id-ID')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detail Breakdown */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <i className="ri-file-list-3-line text-emerald-600"></i>
+                  Rincian Transaksi
+                </h3>
+                
+                <div className="space-y-2.5">
+                  {tutupKasirData.diskon > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-price-tag-3-line text-red-500"></i>
+                        Diskon
+                      </span>
+                      <span className="text-sm font-semibold text-red-600">
+                        -Rp {tutupKasirData.diskon.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tutupKasirData.pajak > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-file-paper-2-line text-amber-500"></i>
+                        Pajak
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        Rp {tutupKasirData.pajak.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tutupKasirData.biaya_lainnya > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-wallet-3-line text-purple-500"></i>
+                        Biaya Lainnya
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        Rp {tutupKasirData.biaya_lainnya.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tutupKasirData.tunai > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-money-cny-circle-line text-green-500"></i>
+                        Tunai
+                      </span>
+                      <span className="text-sm font-semibold text-green-600">
+                        Rp {tutupKasirData.tunai.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tutupKasirData.nontunai > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-bank-card-line text-blue-500"></i>
+                        Non-Tunai
+                      </span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        Rp {tutupKasirData.nontunai.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Grand Total */}
+                <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <i className="ri-wallet-line text-emerald-600"></i>
+                      Grand Total
+                    </span>
+                    <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
+                      Rp {tutupKasirData.total.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Saldo Kas */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+                      <i className="ri-safe-line text-white text-xl"></i>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-amber-700">Saldo Kas</p>
+                      <p className="text-lg font-bold text-amber-900">Rp {tutupKasirData.saldo_kas.toLocaleString('id-ID')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Button */}
+            <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
               <button
                 type="button"
                 onClick={() => setShowRingkasanTutup(false)}
-                className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
               >
-                Tutup
+                <i className="ri-check-line text-lg"></i>
+                Tutup Ringkasan
               </button>
             </div>
           </div>
