@@ -54,6 +54,76 @@ const sections: MenuSection[] = [
         label: 'History Penjualan',
         path: '/transactions?tab=history',
       },
+      {
+        icon: 'ri-file-chart-line',
+        label: 'Laporan',
+        path: '/reports',
+      },
+      {
+        icon: 'ri-bar-chart-box-line',
+        label: 'Laporan Pelanggan',
+        path: '/customer-report',
+      },
+      {
+        icon: 'ri-money-dollar-circle-line',
+        label: 'Ringkasan Pembayaran',
+        path: '/payment-summary',
+      },
+    ],
+  },
+  {
+    title: 'Stok',
+    items: [
+      {
+        icon: 'ri-archive-line',
+        label: 'Restock',
+        path: '/restock',
+      },
+      {
+        icon: 'ri-history-line',
+        label: 'History Stok',
+        path: '/stock-history',
+      },
+      {
+        icon: 'ri-file-list-3-line',
+        label: 'Stock Opname',
+        path: '/stock-opname',
+      },
+      {
+        icon: 'ri-exchange-line',
+        label: 'Konversi Stok',
+        path: '/stock-conversion',
+      },
+    ],
+  },
+  {
+    title: 'Manajemen Lainnya',
+    items: [
+      {
+        icon: 'ri-user-star-line',
+        label: 'Karyawan',
+        path: '/employees',
+      },
+      {
+        icon: 'ri-money-cny-circle-line',
+        label: 'Pengeluaran',
+        path: '/expenses',
+      },
+      {
+        icon: 'ri-fire-line',
+        label: 'Produk Terlaris',
+        path: '/bestseller-products',
+      },
+      {
+        icon: 'ri-shield-user-line',
+        label: 'Roles',
+        path: '/roles',
+      },
+      {
+        icon: 'ri-store-2-line',
+        label: 'Profil Bisnis',
+        path: '/business-profile',
+      },
     ],
   },
   {
