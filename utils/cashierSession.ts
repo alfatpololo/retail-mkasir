@@ -59,6 +59,7 @@ export function markClosed() {
   if (typeof window === 'undefined') return;
   localStorage.setItem(KEY_IS_OPEN, 'false');
   localStorage.removeItem(KEY_BUKAKAS_ID);
+  localStorage.removeItem(KEY_LAST_OPEN_DATE);
 }
 
 export function getBukakasId(): number | null {
@@ -129,17 +130,27 @@ export async function shouldShowBukaKasir(): Promise<{
       return { needOpen: false, needClose: false };
     }
 
-    // Tidak ada bukakas aktif
+    // Tidak ada bukakas aktif - clear semua data lokal kasir
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(KEY_IS_OPEN, 'false');
+      localStorage.removeItem(KEY_BUKAKAS_ID);
+      localStorage.removeItem(KEY_LAST_OPEN_DATE);
+    }
     return { needOpen: true, needClose: false };
   } catch {
-    // Fallback ke lokal
+    // Fallback ke lokal - hanya jika API error
     if (typeof window === 'undefined') {
       return { needOpen: true, needClose: false };
     }
     const isOpen = localStorage.getItem(KEY_IS_OPEN) === 'true';
     const lastOpenStr = localStorage.getItem(KEY_LAST_OPEN_DATE);
-    if (!isOpen || !lastOpenStr) return { needOpen: true, needClose: false };
+    
+    // Jika data lokal menunjukkan kasir tidak terbuka, berarti perlu buka kasir baru
+    if (!isOpen || !lastOpenStr) {
+      return { needOpen: true, needClose: false };
+    }
 
+    // Jika data lokal menunjukkan kasir terbuka, cek apakah sudah lewat hari
     const last = new Date(lastOpenStr);
     const today = new Date();
     last.setHours(0, 0, 0, 0);
@@ -149,6 +160,7 @@ export async function shouldShowBukaKasir(): Promise<{
       return { needOpen: true, needClose: true };
     }
 
+    // Kasir masih aktif di hari yang sama
     return { needOpen: false, needClose: false };
   }
 }

@@ -181,7 +181,7 @@ export default function ProductsPage() {
     }
   };
 
-  const fetchProducts = async (currentPage: number) => {
+  const fetchProducts = async (currentPage: number, search?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -194,8 +194,13 @@ export default function ProductsPage() {
         return;
       }
 
+      let url = `${API_BASE_URL}/master/products?page=${currentPage}&limit=${limit}`;
+      if (search && search.trim() !== '') {
+        url += `&search=${encodeURIComponent(search.trim())}`;
+      }
+
       const response = await fetch(
-        `${API_BASE_URL}/master/products?page=${currentPage}&limit=${limit}`,
+        url,
         {
           method: 'GET',
           headers: {
@@ -248,11 +253,22 @@ export default function ProductsPage() {
     }
   };
 
-  // Ambil daftar produk setiap kali halaman berubah
+  // Reset ke halaman pertama saat pencarian berubah
   useEffect(() => {
-    fetchProducts(page);
+    if (searchQuery && page !== 1) {
+      setPage(1);
+    }
+  }, [searchQuery, page]);
+
+  // Ambil daftar produk setiap kali halaman berubah atau searchQuery berubah
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchProducts(page, searchQuery);
+    }, searchQuery ? 500 : 0); // Debounce 500ms jika ada searchQuery, langsung fetch jika tidak ada
+
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, searchQuery]);
 
   // Ambil kategori produk sekali saat komponen pertama kali dirender
   useEffect(() => {
@@ -420,7 +436,7 @@ export default function ProductsPage() {
         throw new Error(errorData.message || 'Gagal menghapus produk');
       }
 
-      await fetchProducts(page);
+      await fetchProducts(page, searchQuery);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menghapus produk';
       setError(message);
@@ -523,7 +539,7 @@ export default function ProductsPage() {
         throw new Error(errorData.message || 'Gagal mengupdate produk');
       }
 
-      await fetchProducts(page);
+      await fetchProducts(page, searchQuery);
 
       setEditingProduct(null);
     } catch (err) {
@@ -624,7 +640,7 @@ export default function ProductsPage() {
         throw new Error(errorData.message || 'Gagal menyimpan produk');
       }
 
-      await fetchProducts(page);
+      await fetchProducts(page, searchQuery);
       setShowAddModal(false);
       setNewProduct({
         sku: '',
@@ -666,10 +682,6 @@ export default function ProductsPage() {
     return 0;
   });
 
-  const filteredProducts = sortedProducts.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
@@ -826,7 +838,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {!loading && !error && filteredProducts.length === 0 && (
+                {!loading && !error && sortedProducts.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
@@ -836,7 +848,7 @@ export default function ProductsPage() {
                     </td>
                   </tr>
                 )}
-                {!loading && !error && filteredProducts.map((product) => (
+                {!loading && !error && sortedProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-emerald-50/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -908,7 +920,7 @@ export default function ProductsPage() {
           <div className="p-5 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-600">
               {searchQuery 
-                ? <>Menampilkan <span className="font-semibold text-gray-900">{filteredProducts.length}</span> hasil pencarian dari <span className="font-semibold text-gray-900">{totalItems}</span> produk</>
+                ? <>Menampilkan <span className="font-semibold text-gray-900">{sortedProducts.length}</span> hasil pencarian dari <span className="font-semibold text-gray-900">{totalItems}</span> produk</>
                 : <>Menampilkan <span className="font-semibold text-gray-900">{products.length}</span> dari <span className="font-semibold text-gray-900">{totalItems}</span> produk <span className="hidden sm:inline">(halaman {page} dari {totalPages})</span></>
               }
             </p>

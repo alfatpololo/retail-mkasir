@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AddToCartModal from '@/components/AddToCartModal';
 import Sidebar from '@/components/Sidebar';
@@ -10,13 +10,17 @@ import {
   shouldShowBukaKasir,
   bukaKasirApi,
   fetchTutupKasirData,
+  tutupKasirApi,
   getStatusUangBukakasir,
   TutupKasirData,
 } from '@/utils/cashierSession';
+import { logoutUser } from '@/utils/storage';
 
 interface Product {
   id: string;
   name: string;
+  sku?: string;
+  barcode?: string;
   price: number;
   originalPrice: number;
   image: string;
@@ -127,6 +131,12 @@ export default function POSPage() {
   const [loadingKasir, setLoadingKasir] = useState(false);
   const [showRingkasanTutup, setShowRingkasanTutup] = useState(false);
   const [tutupKasirData, setTutupKasirData] = useState<TutupKasirData | null>(null);
+  const [processingTutupKasir, setProcessingTutupKasir] = useState(false);
+  const [catatanTutupKasir, setCatatanTutupKasir] = useState('');
+  const [showDialogSetelahTutupKasir, setShowDialogSetelahTutupKasir] = useState(false);
+  const mobileSearchRef = useRef<HTMLInputElement | null>(null);
+  const desktopSearchRef = useRef<HTMLInputElement | null>(null);
+  const isInitialMount = useRef(true); // Track initial mount untuk mencegah double fetch
   
   useEffect(() => {
     // Cek apakah user sudah login dan PIN sudah diverifikasi
@@ -172,6 +182,81 @@ export default function POSPage() {
     }
   }, [router]);
 
+  // Fokus otomatis ke kolom scan / cari produk untuk memudahkan kasir
+  const focusSearchInput = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (window.innerWidth < 768) {
+        mobileSearchRef.current?.focus();
+      } else {
+        desktopSearchRef.current?.focus();
+      }
+    } catch {
+      // abaikan error fokus
+    }
+  };
+
+  useEffect(() => {
+    // Fokus awal saat halaman POS dibuka
+    focusSearchInput();
+
+    // Saat ukuran layar berubah, tetap prioritaskan fokus ke kolom scan
+    const handleResize = () => focusSearchInput();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Listener global: tangkap input barcode (deretan angka cepat + Enter) meskipun kursor tidak di kolom search
+  useEffect(() => {
+    const buffer = {
+      value: '',
+      lastTime: 0,
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Abaikan jika ada modifier
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+
+      const target = event.target as HTMLElement | null;
+      // Jika fokus di input/textarea/contentEditable, biarkan pengguna mengetik manual
+      if (
+        target &&
+        (target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const now = Date.now();
+      const isDigit = event.key >= '0' && event.key <= '9';
+
+      // Reset buffer jika jeda terlalu lama (anggap bukan scan barcode)
+      if (now - buffer.lastTime > 300) {
+        buffer.value = '';
+      }
+
+      if (isDigit) {
+        buffer.value += event.key;
+        buffer.lastTime = now;
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        // Minimal 6 digit agar tidak ganggu pengetikan biasa
+        if (buffer.value.length >= 6) {
+          setSearchQuery(buffer.value);
+          buffer.value = '';
+          buffer.lastTime = 0;
+          event.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Reset sidebar state saat window resize untuk memastikan konsistensi
   useEffect(() => {
     const handleResize = () => {
@@ -206,8 +291,11 @@ export default function POSPage() {
               setShowRingkasanTutup(true);
               return;
             }
+            // Jika data null, berarti tidak ada bukakas aktif, lanjut ke buka kasir
+            console.log('Tidak ada data ringkasan, lanjut ke buka kasir');
           } catch (e) {
             console.error('Gagal mengambil ringkasan tutup kasir:', e);
+            // Jika error, berarti tidak ada bukakas aktif, lanjut ke buka kasir
           }
         }
 
@@ -243,6 +331,32 @@ export default function POSPage() {
     void initKasir();
   }, [isChecking]);
 
+  // Saat tekan Enter setelah scan barcode, coba langsung tambah ke keranjang
+  const handleScanEnter = () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    const availableProducts = filteredProducts.filter((p) => p.stock > 0);
+
+    // Jika hanya satu hasil yang cocok, langsung masukkan ke keranjang
+    if (availableProducts.length === 1) {
+      handleProductClick(availableProducts[0]);
+      setSearchQuery('');
+      focusSearchInput();
+      return;
+    }
+
+    // Jika banyak hasil, coba cari yang namanya persis sama dengan input
+    const exactMatch = availableProducts.find(
+      (p) => p.name.toLowerCase() === query.toLowerCase()
+    );
+    if (exactMatch) {
+      handleProductClick(exactMatch);
+      setSearchQuery('');
+      focusSearchInput();
+    }
+  };
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -272,6 +386,7 @@ export default function POSPage() {
   } | null>(null);
   const [categories, setCategories] = useState<PosCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [originalProducts, setOriginalProducts] = useState<Product[]>([]); // Simpan data original tanpa search
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [errorProducts, setErrorProducts] = useState<string | null>(null);
@@ -359,6 +474,7 @@ export default function POSPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${jwtPin}`,
           },
+          cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
         }
       );
 
@@ -372,6 +488,8 @@ export default function POSPage() {
       const mapped: Product[] = json.data.data.map((item) => ({
         id: String(item.id),
         name: item.nama,
+        sku: item.sku,
+        barcode: item.barcode,
         price: item.harga,
         originalPrice: item.harga_modal || item.harga,
         image: item.gambar_url || '',
@@ -382,12 +500,53 @@ export default function POSPage() {
         stock: item.stok,
       }));
 
-      setProducts(mapped);
+      // Jika tanpa parameter search, simpan sebagai originalProducts
+      // Jika dengan parameter search, hanya update products
+      if (!search || search.trim() === '') {
+        setOriginalProducts(mapped);
+        setProducts(mapped);
+        
+        // Update stok di cart items sesuai dengan data produk terbaru
+        // Hanya update ketika fetch tanpa search untuk memastikan data lengkap
+        if (cartItems.length > 0) {
+          setCartItems(prevCartItems =>
+            prevCartItems.map(cartItem => {
+              const updatedProduct = mapped.find(p => p.id === cartItem.id);
+              if (updatedProduct) {
+                // Update stok dan pastikan quantity tidak melebihi stok baru
+                const newStock = updatedProduct.stock ?? 0;
+                const adjustedQty = Math.min(cartItem.quantity, newStock);
+                return {
+                  ...cartItem,
+                  stock: newStock,
+                  quantity: adjustedQty > 0 ? adjustedQty : 0,
+                  subtotal: (adjustedQty > 0 ? adjustedQty : 0) * cartItem.price,
+                };
+              }
+              return cartItem;
+            }).filter(item => item.quantity > 0) // Hapus item dengan quantity 0
+          );
+        }
+      } else {
+        // Ketika search, tetap update products tapi originalProducts tetap dipertahankan
+        setProducts(mapped);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal memuat produk';
       setErrorProducts(message);
     } finally {
       setLoadingProducts(false);
+    }
+  };
+
+  // Helper function untuk refresh produk (menghindari duplikasi kode)
+  const refreshProducts = async () => {
+    // Selalu refresh originalProducts (tanpa search) untuk data base yang konsisten
+    await fetchProducts();
+    
+    // Jika ada searchQuery aktif, juga refresh dengan search untuk update tampilan search
+    if (searchQuery && searchQuery.trim() !== '') {
+      await fetchProducts(searchQuery);
     }
   };
 
@@ -398,8 +557,21 @@ export default function POSPage() {
   }, []);
 
   useEffect(() => {
+    // Skip fetch saat initial mount karena sudah di-handle oleh useEffect pertama
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const handler = setTimeout(() => {
-      fetchProducts(searchQuery);
+      // Jika searchQuery kosong, selalu fetch ulang dari API untuk mendapatkan data terbaru
+      // Jangan restore dari originalProducts karena bisa jadi data sudah stale
+      if (!searchQuery || searchQuery.trim() === '') {
+        fetchProducts();
+      } else {
+        // Jika ada searchQuery, fetch dengan parameter search (API sudah benar mengembalikan stok terbaru)
+        fetchProducts(searchQuery);
+      }
     }, 400);
 
     return () => clearTimeout(handler);
@@ -674,6 +846,9 @@ export default function POSPage() {
 
       // Reset form
       setCartItems([]);
+
+      // Refresh data produk segera setelah transaksi berhasil untuk update stok terbaru
+      await refreshProducts();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal memproses transaksi';
       setTransactionError(message);
@@ -705,9 +880,8 @@ export default function POSPage() {
     setTransactionData(null);
     setTransactionError(null);
 
-    // Refresh section1 (Products Section) saja untuk update stok
-    // Section2 (Cart Sidebar) tidak perlu di-refresh karena sudah di-reset dengan setCartItems([])
-    await fetchProducts(searchQuery);
+    // Refresh data produk untuk memastikan stok terbaru
+    await refreshProducts();
   };
 
   const handlePrintReceipt = async () => {
@@ -719,6 +893,126 @@ export default function POSPage() {
     }
   };
 
+  const handleCetakStrukTutupKasir = (data: TutupKasirData) => {
+    try {
+      // Buat window baru untuk print
+      const printWindow = window.open('', '_blank', 'width=400,height=600');
+      if (!printWindow) {
+        alert('Popup diblokir. Silakan izinkan popup untuk mencetak struk.');
+        return;
+      }
+
+      const styles = `
+        <style>
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 0;
+            padding: 10px;
+          }
+          .receipt-container {
+            width: 280px;
+            margin: 0 auto;
+          }
+          .receipt-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          .receipt-header h1 {
+            font-size: 16px;
+            margin: 0;
+            font-weight: bold;
+          }
+          .receipt-section {
+            margin: 8px 0;
+          }
+          .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            font-size: 11px;
+          }
+          .receipt-row.total {
+            border-top: 1px dashed #000;
+            margin-top: 8px;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 13px;
+          }
+          .receipt-footer {
+            text-align: center;
+            margin-top: 16px;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+            font-size: 10px;
+          }
+        </style>
+      `;
+
+      const content = `
+        ${styles}
+        <div class="receipt-container">
+          <div class="receipt-header">
+            <h1>RINGKASAN TUTUP KASIR</h1>
+            <p>${new Date().toLocaleString('id-ID')}</p>
+          </div>
+          
+          <div class="receipt-section">
+            <div class="receipt-row">
+              <span>Waktu Buka:</span>
+              <span>${data.waktu_buka || '-'}</span>
+            </div>
+            <div class="receipt-row">
+              <span>Waktu Tutup:</span>
+              <span>${data.waktu_sekarang || '-'}</span>
+            </div>
+          </div>
+          
+          <div class="receipt-section">
+            <div class="receipt-row">
+              <span>Total Transaksi:</span>
+              <span>${data.total_transaksi}</span>
+            </div>
+            ${data.tunai > 0 ? `<div class="receipt-row"><span>Tunai:</span><span>Rp ${data.tunai.toLocaleString('id-ID')}</span></div>` : ''}
+            ${data.nontunai > 0 ? `<div class="receipt-row"><span>Non Tunai:</span><span>Rp ${data.nontunai.toLocaleString('id-ID')}</span></div>` : ''}
+            ${data.diskon > 0 ? `<div class="receipt-row"><span>Diskon:</span><span>-Rp ${data.diskon.toLocaleString('id-ID')}</span></div>` : ''}
+            ${data.pajak > 0 ? `<div class="receipt-row"><span>Pajak:</span><span>Rp ${data.pajak.toLocaleString('id-ID')}</span></div>` : ''}
+            ${data.biayapengeluaran && data.biayapengeluaran > 0 ? `<div class="receipt-row"><span>Biaya Pengeluaran:</span><span>Rp ${data.biayapengeluaran.toLocaleString('id-ID')}</span></div>` : ''}
+            ${data.biaya_lainnya > 0 ? `<div class="receipt-row"><span>Biaya Lainnya:</span><span>Rp ${data.biaya_lainnya.toLocaleString('id-ID')}</span></div>` : ''}
+            <div class="receipt-row">
+              <span>Saldo Kas:</span>
+              <span>Rp ${data.saldo_kas.toLocaleString('id-ID')}</span>
+            </div>
+            <div class="receipt-row total">
+              <span>TOTAL:</span>
+              <span>Rp ${data.total.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+          
+          ${data.catatan ? `<div class="receipt-section"><div class="receipt-row"><span>Catatan:</span><span>${data.catatan}</span></div></div>` : ''}
+          
+          <div class="receipt-footer">
+            <p>Terima kasih</p>
+          </div>
+        </div>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(content);
+      printWindow.document.close();
+      
+      // Tunggu sebentar lalu print
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } catch (err) {
+      console.error('Print error:', err);
+      alert('Gagal mencetak struk');
+    }
+  };
+
   const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0);
   // Untuk sementara, diskon dan pajak tidak digunakan di POS, set ke 0
   const discount = 0;
@@ -727,15 +1021,38 @@ export default function POSPage() {
   const parsedPaidAmount = parseCurrencyInput(paidAmount);
   const change = Math.max(0, parsedPaidAmount - total);
 
+  // Gunakan products yang sudah di-update dari API search (untuk memastikan data terbaru)
+  // Ketika ada searchQuery, products sudah di-update dari API search dengan stok terbaru
+  // Ketika tidak ada searchQuery, products sama dengan originalProducts
   const filteredProducts = products.filter((product) => {
     const matchCategory =
       selectedCategory === 'all' || product.category.toLowerCase() === selectedCategory.toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
     const matchSearch =
-      !searchQuery ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+      !query ||
+      product.name.toLowerCase().includes(query) ||
+      product.category.toLowerCase().includes(query) ||
+      (product.sku && product.sku.toLowerCase().includes(query)) ||
+      (product.barcode && product.barcode.toLowerCase().includes(query));
     return matchCategory && matchSearch;
   });
+
+  // Otomatis masukkan ke keranjang untuk pola scan barcode (angka) saat hanya ada 1 hasil
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    // Hanya jalankan auto-scan untuk input numerik yang cukup panjang (menghindari ketik nama biasa)
+    const isNumericBarcode = /^[0-9]{6,}$/.test(query);
+    if (!isNumericBarcode) return;
+
+    const availableProducts = filteredProducts.filter((p) => p.stock > 0);
+    if (availableProducts.length !== 1) return;
+
+    handleProductClick(availableProducts[0]);
+    setSearchQuery('');
+    focusSearchInput();
+  }, [searchQuery, filteredProducts]);
 
   // Show loading while checking authentication
   if (isChecking) {
@@ -835,10 +1152,17 @@ export default function POSPage() {
           <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="Scan barcode"
+              placeholder="Scan / cari produk lalu gunakan scanner"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleScanEnter();
+                }
+              }}
+              ref={mobileSearchRef}
+              className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
               <i className="ri-barcode-line text-lg text-gray-400"></i>
@@ -851,6 +1175,7 @@ export default function POSPage() {
                     type="button"
                     onClick={() => {
                       handleProductClick(p);
+                      setSearchQuery('');
                     }}
                     className="w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-emerald-50 cursor-pointer flex items-center gap-2"
                   >
@@ -894,10 +1219,17 @@ export default function POSPage() {
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Klik disini lalu scan barcode"
+                placeholder="Fokus di sini lalu scan barcode / ketik nama produk"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-3 md:pl-4 pr-10 md:pr-12 py-2 md:py-2.5 lg:py-3 border border-gray-300 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleScanEnter();
+                  }
+                }}
+                ref={desktopSearchRef}
+                className="w-full pl-3 md:pl-4 pr-10 md:pr-12 py-2 md:py-2.5 lg:py-3 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
               />
               <div className="absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
                 <i className="ri-barcode-line text-lg md:text-xl text-gray-400"></i>
@@ -911,6 +1243,7 @@ export default function POSPage() {
                       type="button"
                       onClick={() => {
                         handleProductClick(p);
+                      setSearchQuery('');
                       }}
                       className="w-full px-3 md:px-4 py-2 text-left text-[11px] md:text-xs text-gray-700 hover:bg-emerald-50 cursor-pointer flex items-center gap-2"
                     >
@@ -1762,13 +2095,13 @@ export default function POSPage() {
       {/* (Opsional) Modal Ringkasan Tutup Kasir jika hari berganti */}
       {showRingkasanTutup && tutupKasirData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowRingkasanTutup(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-slide-up flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Header dengan gradient */}
-            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 px-6 py-8 text-white relative overflow-hidden">
+            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 px-6 py-6 text-white relative overflow-hidden flex-shrink-0">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-2">
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                     <i className="ri-bar-chart-box-line text-3xl"></i>
                   </div>
@@ -1777,11 +2110,35 @@ export default function POSPage() {
                     <p className="text-emerald-50 text-sm">Hari sebelumnya</p>
                   </div>
                 </div>
+                <button
+                  onClick={() => setShowRingkasanTutup(false)}
+                  className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                >
+                  <i className="ri-close-line text-xl"></i>
+                </button>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+              {/* Info Waktu */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <i className="ri-time-line text-gray-400"></i>
+                    Waktu Buka
+                  </span>
+                  <span className="font-medium text-gray-900">{tutupKasirData.waktu_buka || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <i className="ri-time-line text-gray-400"></i>
+                    Waktu Sekarang
+                  </span>
+                  <span className="font-medium text-gray-900">{tutupKasirData.waktu_sekarang || '-'}</span>
+                </div>
+              </div>
+
               {/* Stat Cards */}
               <div className="grid grid-cols-2 gap-3">
                 {/* Total Transaksi */}
@@ -1815,10 +2172,39 @@ export default function POSPage() {
               <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                   <i className="ri-file-list-3-line text-emerald-600"></i>
-                  Rincian Transaksi
+                  Ringkasan Transaksi
                 </h3>
                 
                 <div className="space-y-2.5">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Total Transaksi</span>
+                    <span className="text-sm font-semibold text-gray-900">{tutupKasirData.total_transaksi}</span>
+                  </div>
+                  
+                  {tutupKasirData.tunai > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-money-cny-circle-line text-green-500"></i>
+                        Tunai
+                      </span>
+                      <span className="text-sm font-semibold text-green-600">
+                        Rp {tutupKasirData.tunai.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {tutupKasirData.nontunai > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-bank-card-line text-blue-500"></i>
+                        Non Tunai
+                      </span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        Rp {tutupKasirData.nontunai.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
                   {tutupKasirData.diskon > 0 && (
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-sm text-gray-600 flex items-center gap-2">
@@ -1843,6 +2229,18 @@ export default function POSPage() {
                     </div>
                   )}
                   
+                  {tutupKasirData.biayapengeluaran && tutupKasirData.biayapengeluaran > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <span className="text-sm text-gray-600 flex items-center gap-2">
+                        <i className="ri-wallet-3-line text-purple-500"></i>
+                        Biaya Pengeluaran
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        Rp {tutupKasirData.biayapengeluaran.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  
                   {tutupKasirData.biaya_lainnya > 0 && (
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-sm text-gray-600 flex items-center gap-2">
@@ -1855,29 +2253,15 @@ export default function POSPage() {
                     </div>
                   )}
                   
-                  {tutupKasirData.tunai > 0 && (
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
                       <span className="text-sm text-gray-600 flex items-center gap-2">
-                        <i className="ri-money-cny-circle-line text-green-500"></i>
-                        Tunai
+                      <i className="ri-safe-line text-amber-500"></i>
+                      Saldo Kas
                       </span>
-                      <span className="text-sm font-semibold text-green-600">
-                        Rp {tutupKasirData.tunai.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {tutupKasirData.nontunai > 0 && (
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-600 flex items-center gap-2">
-                        <i className="ri-bank-card-line text-blue-500"></i>
-                        Non-Tunai
-                      </span>
-                      <span className="text-sm font-semibold text-blue-600">
-                        Rp {tutupKasirData.nontunai.toLocaleString('id-ID')}
+                    <span className="text-sm font-semibold text-amber-600">
+                      Rp {tutupKasirData.saldo_kas.toLocaleString('id-ID')}
                       </span>
                     </div>
-                  )}
                 </div>
 
                 {/* Grand Total */}
@@ -1885,40 +2269,167 @@ export default function POSPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold text-gray-900 flex items-center gap-2">
                       <i className="ri-wallet-line text-emerald-600"></i>
-                      Grand Total
+                      TOTAL
                     </span>
-                    <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
+                    <span className="text-xl font-bold text-emerald-600">
                       Rp {tutupKasirData.total.toLocaleString('id-ID')}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Saldo Kas */}
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
-                      <i className="ri-safe-line text-white text-xl"></i>
+              {/* Produk Terjual */}
+              {tutupKasirData.produkterjual && Array.isArray(tutupKasirData.produkterjual) && tutupKasirData.produkterjual.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <i className="ri-shopping-bag-line text-emerald-600"></i>
+                    Produk Terjual
+                  </h3>
+                  <div className="space-y-4">
+                    {tutupKasirData.produkterjual.map((kategori: any, idx: number) => (
+                      <div key={idx} className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-700">{kategori.nama_kategori || 'Lainnya'}</p>
+                        {kategori.produk && Array.isArray(kategori.produk) && kategori.produk.map((produk: any, pIdx: number) => (
+                          <div key={pIdx} className="flex items-center justify-between pl-4 text-sm">
+                            <span className="text-gray-600">
+                              {produk.nama || 'Produk'} ({produk.jumlah_terbeli || produk.jumlahTerbeli || 0}x)
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              Rp {((produk.harga || 0) * (produk.jumlah_terbeli || produk.jumlahTerbeli || 0)).toLocaleString('id-ID')}
+                            </span>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-amber-700">Saldo Kas</p>
-                      <p className="text-lg font-bold text-amber-900">Rp {tutupKasirData.saldo_kas.toLocaleString('id-ID')}</p>
+                        ))}
                     </div>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              {/* Input Catatan */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <i className="ri-file-text-line text-emerald-600"></i>
+                  Catatan
+                </h3>
+                <textarea
+                  value={catatanTutupKasir}
+                  onChange={(e) => setCatatanTutupKasir(e.target.value)}
+                  placeholder="Masukkan catatan (opsional)"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex-shrink-0 space-y-2">
+              <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowRingkasanTutup(false)}
+                  className="flex-1 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-xl font-medium hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <i className="ri-close-line"></i>
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Cetak struk tutup kasir
+                    handleCetakStrukTutupKasir(tutupKasirData);
+                  }}
+                  className="flex-1 py-2.5 text-emerald-600 bg-white border border-emerald-300 rounded-xl font-medium hover:bg-emerald-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <i className="ri-printer-line"></i>
+                  Cetak Struk
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (processingTutupKasir) return;
+                    
+                    try {
+                      setProcessingTutupKasir(true);
+                      await tutupKasirApi(catatanTutupKasir || 'Tutup kasir dari ringkasan penjualan');
+                      setShowRingkasanTutup(false);
+                      setShowDialogSetelahTutupKasir(true);
+                    } catch (e) {
+                      alert(
+                        `Gagal tutup kasir: ${
+                          e instanceof Error ? e.message : 'Terjadi kesalahan'
+                        }`
+                      );
+                      setProcessingTutupKasir(false);
+                    }
+                  }}
+                  disabled={processingTutupKasir}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingTutupKasir ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin"></i>
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-check-line"></i>
+                      Tutup Kasir
+                    </>
+                  )}
+              </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog Konfirmasi Setelah Tutup Kasir */}
+      {showDialogSetelahTutupKasir && tutupKasirData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <i className="ri-checkbox-circle-line text-2xl"></i>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Kasir Berhasil Ditutup</h2>
+                  <p className="text-emerald-50 text-sm">Pilih tindakan selanjutnya</p>
                 </div>
               </div>
             </div>
 
-            {/* Footer Button */}
-            <div className="px-6 py-5 bg-gray-50 border-t border-gray-200">
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700 text-sm">
+                Kasir telah berhasil ditutup. Anda dapat mencetak struk atau logout dari sistem.
+              </p>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowRingkasanTutup(false)}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
+                onClick={() => {
+                  handleCetakStrukTutupKasir(tutupKasirData);
+                }}
+                className="flex-1 py-2.5 text-emerald-600 bg-white border border-emerald-300 rounded-xl font-medium hover:bg-emerald-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
               >
-                <i className="ri-check-line text-lg"></i>
-                Tutup Ringkasan
+                <i className="ri-printer-line"></i>
+                Cetak Struk
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDialogSetelahTutupKasir(false);
+                  logoutUser();
+                  router.push('/login');
+                }}
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              >
+                <i className="ri-logout-box-line"></i>
+                Logout
               </button>
             </div>
           </div>

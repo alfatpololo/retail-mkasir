@@ -149,6 +149,11 @@ export default function PinPage() {
         // Simpan semua data response ke storage
         localStorage.setItem('pin_session', JSON.stringify(response.data));
         
+        // Simpan status_uang_bukakasir dari response
+        if (response.data.status_uang_bukakasir !== undefined) {
+          localStorage.setItem('status_uang_bukakasir', String(response.data.status_uang_bukakasir));
+        }
+        
         // Simpan currentUser dengan data dari response
         localStorage.setItem('currentUser', JSON.stringify({
           id: response.data.user_id,
