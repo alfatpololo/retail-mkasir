@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AddToCartModal from '@/components/AddToCartModal';
 import Sidebar from '@/components/Sidebar';
+import PrinterStatusIndicator from '@/components/PrinterStatusIndicator';
 import { API_BASE_URL } from '@/utils/api';
 import { usePrinter } from '@/components/PrinterProvider';
+import { generateReceiptESC_POS, printToPrinter, reconnectUSBDevice, reconnectBluetoothDevice, ReceiptData, USBDevice } from '@/utils/printerUtils';
 import {
   shouldShowBukaKasir,
   bukaKasirApi,
@@ -383,6 +385,12 @@ export default function POSPage() {
     paymentMethod?: string;
     customerName?: string;
     isDebt?: boolean;
+    items?: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      subtotal: number;
+    }>;
   } | null>(null);
   const [categories, setCategories] = useState<PosCategory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -838,6 +846,12 @@ export default function POSPage() {
         paymentMethod: methodLabel,
         customerName,
         isDebt,
+        items: cartItems.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.subtotal,
+        })),
       });
 
     // Close payment modal and show success modal
@@ -885,11 +899,117 @@ export default function POSPage() {
   };
 
   const handlePrintReceipt = async () => {
-    // Print receipt functionality
+    if (!transactionData) return;
+
     try {
-    window.print();
+      // Ambil receipt settings
+      const getReceiptSettings = () => {
+        const defaultSettings = {
+          storeName: 'Toko Berkah Jaya',
+          address: 'Jl. Raya Merdeka No. 123, Jakarta Pusat',
+          phone: '021-12345678',
+          footerNote: 'Terima kasih atas kunjungan Anda',
+        };
+
+        if (typeof window === 'undefined') return defaultSettings;
+
+        try {
+          const stored = localStorage.getItem('receipt_settings');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            return { ...defaultSettings, ...parsed };
+          }
+        } catch {
+          // Gunakan default jika parsing gagal
+        }
+
+        return defaultSettings;
+      };
+
+      const receiptSettings = getReceiptSettings();
+
+      // Siapkan data receipt
+      const now = new Date();
+      const receiptData: ReceiptData = {
+        storeName: receiptSettings.storeName,
+        address: receiptSettings.address,
+        phone: receiptSettings.phone,
+        footerNote: receiptSettings.footerNote,
+        transactionId: transactionData.id,
+        date: now.toLocaleDateString('id-ID'),
+        time: now.toLocaleTimeString('id-ID'),
+        items: transactionData.items || [],
+        subtotal: transactionData.total,
+        total: transactionData.total,
+        paid: transactionData.paid,
+        change: transactionData.change,
+        paymentMethod: transactionData.paymentMethod || 'Cash',
+        customerName: transactionData.customerName,
+        isDebt: transactionData.isDebt,
+      };
+
+      // Generate ESC/POS commands
+      const escposData = generateReceiptESC_POS(receiptData);
+
+      // Cek koneksi printer dan print sesuai tipe
+      if (printer.isConnected) {
+        if (printer.type === 'usb') {
+          let device: USBDevice | null = printer.usbDevice || null;
+          
+          // Validasi dan buka device jika ada
+          if (device) {
+            try {
+              if (!device.opened) {
+                await device.open();
+                await device.selectConfiguration(1);
+                await device.claimInterface(0);
+              }
+            } catch {
+              device = null;
+            }
+          }
+          
+          // Reconnect jika device tidak ada
+          if (!device) {
+            device = await reconnectUSBDevice();
+            if (device) {
+              printer.setUsbDevice(device);
+            }
+          }
+          
+          if (device) {
+            await printToPrinter('usb', device, escposData);
+            return;
+          }
+        } else if (printer.type === 'bluetooth') {
+          let device: any = printer.bluetoothDevice || null;
+          
+          // Reconnect jika device tidak ada
+          if (!device) {
+            device = await reconnectBluetoothDevice();
+            if (device) {
+              printer.setBluetoothDevice(device);
+            }
+          }
+          
+          if (device) {
+            await printToPrinter('bluetooth', device, escposData);
+            return;
+          }
+        }
+      }
+
+      // Fallback ke print browser jika tidak ada koneksi atau gagal
+      window.print();
     } catch (err) {
       console.error('Print error:', err);
+      // Fallback ke print browser jika USB print gagal
+      try {
+        window.print();
+      } catch (fallbackErr) {
+        console.error('Fallback print juga gagal:', fallbackErr);
+        alert('Gagal mencetak struk. Pastikan printer terhubung dengan benar.');
+      }
     }
   };
 
@@ -1148,9 +1268,13 @@ export default function POSPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden md:ml-0 2xl:ml-64">
         {/* Mobile Header */}
-        <div className="md:hidden bg-white border-b px-4 py-3 flex items-center gap-3">
-          <div className="flex-1 relative">
-            <input
+        <div className="md:hidden bg-white border-b px-4 py-3">
+          <div className="mb-2">
+            <PrinterStatusIndicator showLabel={true} size="small" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <input
               type="text"
               placeholder="Scan / cari produk lalu gunakan scanner"
               value={searchQuery}
@@ -1199,6 +1323,7 @@ export default function POSPage() {
                 ))}
               </div>
             )}
+            </div>
           </div>
           <button
             onClick={() => setShowCart(!showCart)}
@@ -1216,6 +1341,7 @@ export default function POSPage() {
         {/* Tablet & Desktop Header */}
         <div className="hidden md:block bg-white border-b px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-4">
           <div className="flex items-center gap-2 md:gap-3">
+            <PrinterStatusIndicator showLabel={true} size="small" />
             <div className="flex-1 relative">
               <input
                 type="text"

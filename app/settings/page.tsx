@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import PrinterStatusIndicator from '@/components/PrinterStatusIndicator';
 import { PrinterConnectionType, usePrinter } from '@/components/PrinterProvider';
+import { reconnectUSBDevice, reconnectBluetoothDevice, sendToUSBPrinter, sendToBluetoothPrinter } from '@/utils/printerUtils';
 
 type ConnectionType = PrinterConnectionType;
 
@@ -21,13 +23,25 @@ export default function SettingsPage() {
     printer: 'Thermal Printer 01',
   });
 
-  const [connectionType, setConnectionType] = useState<ConnectionType>('system');
+  const printer = usePrinter();
+  const { setConnection, setUsbDevice: setUsbDeviceProvider, setBluetoothDevice: setBluetoothDeviceProvider, usbDevice: providerUsbDevice, bluetoothDevice: providerBluetoothDevice, type: savedType } = printer;
+  const [connectionType, setConnectionType] = useState<ConnectionType>(savedType || 'system');
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus>(null);
-  const { setConnection } = usePrinter();
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+  const [usbDevice, setUsbDevice] = useState<any>(null); // Simpan referensi device USB
+
+  // Sync connection type dan device dari PrinterProvider saat page load
+  useEffect(() => {
+    if (savedType) {
+      setConnectionType(savedType);
+    }
+    if (providerUsbDevice) {
+      setUsbDevice(providerUsbDevice);
+    }
+  }, [savedType, providerUsbDevice]);
 
   // Reset sidebar state saat window resize untuk memastikan konsistensi
   useEffect(() => {
@@ -48,7 +62,15 @@ export default function SettingsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Settings saved:', receiptSettings);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('receipt_settings', JSON.stringify(receiptSettings));
+        alert('Pengaturan struk berhasil disimpan!');
+      } catch (err) {
+        console.error('Gagal menyimpan pengaturan:', err);
+        alert('Gagal menyimpan pengaturan');
+      }
+    }
   };
 
   const handleConnectPrinter = async () => {
@@ -73,6 +95,19 @@ export default function SettingsPage() {
 
         if (device) {
           const name = device.productName || 'Perangkat USB';
+          
+          // Buka koneksi ke device
+          await device.open();
+          
+          // Pilih konfigurasi (biasanya 1)
+          await device.selectConfiguration(1);
+          
+          // Klaim interface (biasanya interface 0)
+          await device.claimInterface(0);
+          
+          setUsbDevice(device);
+          // Simpan device ke PrinterProvider juga
+          setUsbDeviceProvider(device);
           setPrinterStatus({
             type: 'success',
             message: `Printer USB terhubung: ${name}.`,
@@ -100,6 +135,10 @@ export default function SettingsPage() {
 
         if (device) {
           const name = device.name || 'Perangkat Bluetooth';
+          
+          // Simpan device ke PrinterProvider
+          setBluetoothDeviceProvider(device);
+          
           setPrinterStatus({
             type: 'success',
             message: `Printer Bluetooth terhubung: ${name}.`,
@@ -144,6 +183,96 @@ export default function SettingsPage() {
     }
   };
 
+  // Fungsi untuk generate test print ESC/POS
+  const generateTestPrint = (): Uint8Array => {
+    const encoder = new TextEncoder();
+    const commands: number[] = [];
+    
+    // Helper untuk separator
+    const addSeparator = () => {
+      const dashes = Array(32).fill(0x2D);
+      commands.push(...dashes);
+      commands.push(0x0A);
+    };
+    
+    // Initialize printer
+    commands.push(0x1B, 0x40); // ESC @
+    
+    // Center align
+    commands.push(0x1B, 0x61, 0x01); // ESC a 1
+    
+    // Double width & height
+    commands.push(0x1D, 0x21, 0x11); // GS ! 11
+    
+    // Title
+    const title = 'TEST PRINT';
+    const titleBytes = encoder.encode(title);
+    commands.push(...Array.from(titleBytes));
+    commands.push(0x0A); // LF
+    
+    // Reset text size
+    commands.push(0x1D, 0x21, 0x00); // GS ! 00
+    
+    // Left align
+    commands.push(0x1B, 0x61, 0x00); // ESC a 0
+    
+    // Separator
+    addSeparator();
+    
+    // Store info
+    const storeName = receiptSettings.storeName || 'TOKO TEST';
+    const storeBytes = encoder.encode(storeName);
+    commands.push(...Array.from(storeBytes));
+    commands.push(0x0A); // LF
+    
+    const address = receiptSettings.address || 'Alamat Toko';
+    const addressBytes = encoder.encode(address);
+    commands.push(...Array.from(addressBytes));
+    commands.push(0x0A); // LF
+    
+    const phone = receiptSettings.phone || '021-12345678';
+    const phoneBytes = encoder.encode(phone);
+    commands.push(...Array.from(phoneBytes));
+    commands.push(0x0A, 0x0A); // LF x2
+    
+    // Test message
+    const testMsg = 'Ini adalah test print dari';
+    const testMsgBytes = encoder.encode(testMsg);
+    commands.push(...Array.from(testMsgBytes));
+    commands.push(0x0A); // LF
+    
+    const appName = 'Retail mKasir';
+    const appNameBytes = encoder.encode(appName);
+    commands.push(...Array.from(appNameBytes));
+    commands.push(0x0A, 0x0A); // LF x2
+    
+    // Date time
+    const now = new Date();
+    const dateStr = `Tanggal: ${now.toLocaleDateString('id-ID')}`;
+    const timeStr = `Waktu: ${now.toLocaleTimeString('id-ID')}`;
+    const dateBytes = encoder.encode(dateStr);
+    const timeBytes = encoder.encode(timeStr);
+    commands.push(...Array.from(dateBytes));
+    commands.push(0x0A); // LF
+    commands.push(...Array.from(timeBytes));
+    commands.push(0x0A, 0x0A); // LF x2
+    
+    // Separator
+    addSeparator();
+    
+    // Footer
+    const footer = receiptSettings.footerNote || 'Terima kasih';
+    const footerBytes = encoder.encode(footer);
+    commands.push(...Array.from(footerBytes));
+    commands.push(0x0A, 0x0A, 0x0A); // LF x3
+    
+    // Cut paper (partial cut)
+    commands.push(0x1D, 0x56, 0x42, 0x00); // GS V B 0
+    
+    return new Uint8Array(commands);
+  };
+
+
   const handleTestPrint = async () => {
     setPrinterStatus(null);
     setIsTesting(true);
@@ -156,15 +285,47 @@ export default function SettingsPage() {
           type: 'info',
           message: 'Dialog print dibuka. Pilih printer thermal Anda lalu cetak struk.',
         });
-      } else {
-        // Di sini seharusnya kirim data ESC/POS ke printer melalui USB / Bluetooth.
-        // Implementasi penuh butuh protokol printer & mungkin service backend / bridge lokal.
+      } else if (connectionType === 'usb') {
+        let deviceToUse = usbDevice || providerUsbDevice;
+        
+        // Reconnect jika device tidak ada
+        if (!deviceToUse) {
+          deviceToUse = await reconnectUSBDevice();
+          
+          if (deviceToUse) {
+            setUsbDevice(deviceToUse);
+            setUsbDeviceProvider(deviceToUse);
+          }
+        }
+        
+        if (!deviceToUse) {
+          setPrinterStatus({
+            type: 'error',
+            message: 'Printer USB belum terhubung. Klik "Connect Printer" terlebih dahulu.',
+          });
+          return;
+        }
+
+        const escposData = generateTestPrint();
+        await sendToUSBPrinter(deviceToUse, escposData);
+        
+        setPrinterStatus({
+          type: 'success',
+          message: 'Test print berhasil dikirim ke printer USB. Cek hasil cetakan di printer.',
+        });
+      } else if (connectionType === 'bluetooth') {
+        // Bluetooth implementation bisa ditambahkan nanti
         setPrinterStatus({
           type: 'info',
-          message:
-            'Perintah test print dikirim (simulasi). Untuk cetak nyata, perlu implementasi komunikasi ESC/POS ke printer.',
+          message: 'Test print Bluetooth belum diimplementasikan. Gunakan USB atau Sistem.',
         });
       }
+    } catch (error: any) {
+      console.error('Print error:', error);
+      setPrinterStatus({
+        type: 'error',
+        message: `Gagal mengirim test print: ${error.message || 'Error tidak diketahui'}. Pastikan printer terhubung dan driver sudah terinstall.`,
+      });
     } finally {
       setIsTesting(false);
     }
@@ -477,9 +638,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                  Web
-                </span>
+                <PrinterStatusIndicator showLabel={false} size="small" />
               </div>
 
               <div className="space-y-5">
