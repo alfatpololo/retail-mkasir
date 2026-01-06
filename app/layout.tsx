@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { PrinterProvider } from "@/components/PrinterProvider";
+import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Retail POS System",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased bg-gray-50" suppressHydrationWarning>
-        <PrinterProvider>{children}</PrinterProvider>
+        <ThemeProvider>
+          <PrinterProvider>{children}</PrinterProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AddToCartModal from '@/components/AddToCartModal';
 import Sidebar from '@/components/Sidebar';
+import PrinterStatusIndicator from '@/components/PrinterStatusIndicator';
 import { API_BASE_URL } from '@/utils/api';
 import { usePrinter } from '@/components/PrinterProvider';
+import { generateReceiptESC_POS, printToPrinter, reconnectUSBDevice, reconnectBluetoothDevice, ReceiptData, USBDevice } from '@/utils/printerUtils';
 import {
   shouldShowBukaKasir,
   bukaKasirApi,
@@ -396,6 +398,63 @@ export default function POSPage() {
   const [showCashierDropdown, setShowCashierDropdown] = useState(false);
   const [selectedCashier, setSelectedCashier] = useState<CurrentCashier | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Register keyboard shortcuts for desktop
+  useEffect(() => {
+    const shortcuts = new Map<string, () => void>();
+
+    // Focus search input (F key or Cmd/Ctrl+K)
+    shortcuts.set(SHORTCUTS.FOCUS_SEARCH, () => {
+      focusSearchInput();
+    });
+    shortcuts.set(`CommandOrControl+${SHORTCUTS.FOCUS_SEARCH_ALT}`, () => {
+      focusSearchInput();
+    });
+
+    // Toggle cart (C key)
+    shortcuts.set(SHORTCUTS.TOGGLE_CART, () => {
+      if (!showBukaKasirModal && !showRingkasanTutup && !showDialogSetelahTutupKasir && !showThemeModal) {
+        setShowCart(!showCart);
+      }
+    });
+
+    // Close modals (Escape key)
+    shortcuts.set(SHORTCUTS.CLOSE_MODAL, () => {
+      if (showThemeModal) {
+        setShowThemeModal(false);
+      }
+      if (showRingkasanTutup) {
+        setShowRingkasanTutup(false);
+      }
+      if (showDialogSetelahTutupKasir) {
+        setShowDialogSetelahTutupKasir(false);
+      }
+      if (showCart && cartItems.length === 0) {
+        setShowCart(false);
+      }
+      setSearchQuery('');
+    });
+
+    // Listen to Tauri global shortcuts
+    const cleanupTauri = listenToTauriShortcuts({
+      onSearch: () => focusSearchInput(),
+      onEscape: () => {
+        if (showThemeModal) setShowThemeModal(false);
+        if (showRingkasanTutup) setShowRingkasanTutup(false);
+        if (showDialogSetelahTutupKasir) setShowDialogSetelahTutupKasir(false);
+        if (showCart && cartItems.length === 0) setShowCart(false);
+        setSearchQuery('');
+      },
+    });
+
+    // Register shortcuts
+    const cleanup = registerShortcuts(shortcuts);
+
+    return () => {
+      if (cleanup) cleanup();
+      if (cleanupTauri) cleanupTauri();
+    };
+  }, [showCart, showBukaKasirModal, showRingkasanTutup, showDialogSetelahTutupKasir, showThemeModal, cartItems.length]);
   const [transactionData, setTransactionData] = useState<{
     id: string;
     total: number;

@@ -130,6 +130,9 @@ export function setTheme(themeId: string): void {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(themeId));
     applyTheme(themeId);
+    
+    // Dispatch custom event to notify all pages about theme change
+    window.dispatchEvent(new CustomEvent('themechange', { detail: themeId }));
   } catch (error) {
     console.error('Error saving theme:', error);
   }
@@ -141,10 +144,19 @@ export function applyTheme(themeId: string): void {
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
 
   const root = document.documentElement;
+  
+  // Set new theme variables
   root.style.setProperty('--primary-color', theme.primary);
   root.style.setProperty('--primary-color-dark', theme.primaryDark);
   root.style.setProperty('--primary-color-light', theme.primaryLight);
   root.style.setProperty('--primary-color-soft', theme.primarySoft);
   root.style.setProperty('--primary-gradient', theme.gradient);
+  
+  // Set legacy variables for backward compatibility
+  root.style.setProperty('--primary-green', theme.primary);
+  root.style.setProperty('--primary-green-strong', theme.primaryDark);
+  root.style.setProperty('--primary-green-light', theme.primaryLight);
+  root.style.setProperty('--primary-green-soft', theme.primarySoft);
+  root.style.setProperty('--primary-green-gradient', theme.gradient);
 }
 
