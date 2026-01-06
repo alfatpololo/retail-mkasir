@@ -22,6 +22,20 @@ export default function CloseCashierPage() {
   const [error, setError] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+  const totalTransaksi =
+    tutupKasirData?.total_transaksi ?? bukakasData?.total_transaksi ?? 0;
+  const totalPenjualan =
+    tutupKasirData?.total ?? bukakasData?.total_penjualan ?? 0;
+  const tunaiVal = tutupKasirData?.tunai ?? bukakasData?.tunai ?? 0;
+  const nonTunaiVal =
+    tutupKasirData?.nontunai ?? bukakasData?.non_tunai ?? 0;
+  const waktuBukaStr =
+    tutupKasirData?.waktu_buka ?? bukakasData?.waktu_buka ?? '-';
+  const catatanVal =
+    tutupKasirData?.catatan ?? bukakasData?.catatan ?? '-';
+  const modalAwalVal = bukakasData?.modal_awal ?? 0;
+  const saldoKasVal =
+    tutupKasirData?.saldo_kas ?? bukakasData?.saldo_kas ?? 0;
 
   useEffect(() => {
     const load = async () => {
@@ -37,9 +51,23 @@ export default function CloseCashierPage() {
           return;
         }
 
-        // Ambil data dari API bukakas/{id}
-        const bukakas = await fetchBukakasData(bukakasId);
-        setBukakasData(bukakas);
+        // Ambil ringkasan tutup kasir terlebih dahulu
+        try {
+          const ringkasan = await fetchTutupKasirData();
+          if (ringkasan) {
+            setTutupKasirData(ringkasan);
+          }
+        } catch (e) {
+          console.warn('Gagal memuat ringkasan tutup kasir:', e);
+        }
+
+        // Ambil data bukakas/{id} sebagai detail pembuka kasir
+        try {
+          const bukakas = await fetchBukakasData(bukakasId);
+          setBukakasData(bukakas);
+        } catch (e) {
+          console.warn('Gagal memuat data bukakas:', e);
+        }
       } catch (e) {
         setError(
           e instanceof Error ? e.message : 'Gagal memuat data bukakas.'
@@ -213,7 +241,7 @@ export default function CloseCashierPage() {
           </div>
         )}
 
-        {!loading && bukakasData && (
+        {!loading && (tutupKasirData || bukakasData) && (
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -224,7 +252,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-blue-700">Total Transaksi</p>
-                    <p className="text-xl font-bold text-blue-900">{bukakasData.total_transaksi}</p>
+                    <p className="text-xl font-bold text-blue-900">{totalTransaksi}</p>
                   </div>
                 </div>
               </div>
@@ -236,7 +264,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-emerald-700">Total Penjualan</p>
-                    <p className="text-lg font-bold text-emerald-900">Rp {bukakasData.total_penjualan.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-emerald-900">Rp {totalPenjualan.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -248,7 +276,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-green-700">Tunai</p>
-                    <p className="text-lg font-bold text-green-900">Rp {bukakasData.tunai.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-green-900">Rp {tunaiVal.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -260,7 +288,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-purple-700">Non Tunai</p>
-                    <p className="text-lg font-bold text-purple-900">Rp {bukakasData.non_tunai.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-purple-900">Rp {nonTunaiVal.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -282,7 +310,7 @@ export default function CloseCashierPage() {
                     <span className="text-sm font-medium text-gray-600">Waktu Buka</span>
                   </div>
                   <span className="text-sm font-bold text-gray-900">
-                    {new Date(bukakasData.waktu_buka).toLocaleString('id-ID', {
+                    {new Date(waktuBukaStr).toLocaleString('id-ID', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',
@@ -297,7 +325,7 @@ export default function CloseCashierPage() {
                     <i className="ri-user-line text-gray-400"></i>
                     <span className="text-sm font-medium text-gray-600">Kasir</span>
                   </div>
-                  <span className="text-sm font-bold text-gray-900">{bukakasData.user.nama}</span>
+                  <span className="text-sm font-bold text-gray-900">{bukakasData?.user.nama || '-'}</span>
                 </div>
 
                 <div className="flex items-center justify-between py-3 border-b border-gray-100">
@@ -305,7 +333,7 @@ export default function CloseCashierPage() {
                     <i className="ri-file-text-line text-gray-400"></i>
                     <span className="text-sm font-medium text-gray-600">Catatan</span>
                   </div>
-                  <span className="text-sm font-bold text-gray-900">{bukakasData.catatan || '-'}</span>
+                  <span className="text-sm font-bold text-gray-900">{catatanVal}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -314,7 +342,7 @@ export default function CloseCashierPage() {
                       <i className="ri-wallet-line text-blue-500"></i>
                       <span className="text-sm font-medium text-gray-600">Modal Awal</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-900">Rp {bukakasData.modal_awal.toLocaleString('id-ID')}</span>
+                    <span className="text-sm font-bold text-gray-900">Rp {modalAwalVal.toLocaleString('id-ID')}</span>
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
@@ -322,7 +350,7 @@ export default function CloseCashierPage() {
                       <i className="ri-safe-line text-amber-600"></i>
                       <span className="text-sm font-semibold text-amber-700">Saldo Kas</span>
                     </div>
-                    <span className="text-base font-bold text-amber-900">Rp {bukakasData.saldo_kas.toLocaleString('id-ID')}</span>
+                    <span className="text-base font-bold text-amber-900">Rp {saldoKasVal.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </div>
@@ -372,6 +400,69 @@ export default function CloseCashierPage() {
                       <span className="text-sm font-bold text-gray-900">Rp {tutupKasirData.biaya_lainnya.toLocaleString('id-ID')}</span>
                     </div>
                   </div>
+
+                  {/* Produk Terjual per Kategori */}
+                  {Array.isArray(tutupKasirData.produkterjual) &&
+                    tutupKasirData.produkterjual.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <i className="ri-shopping-bag-3-line text-emerald-500"></i>
+                          Produk Terjual per Kategori
+                        </h3>
+                        <div className="space-y-3">
+                          {tutupKasirData.produkterjual.map(
+                            (kategori: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="border border-gray-100 rounded-2xl p-4 bg-gray-50"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-semibold text-gray-800">
+                                    {kategori.nama_kategori}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {Array.isArray(kategori.produk)
+                                      ? `${kategori.produk.length} produk`
+                                      : '0 produk'}
+                                  </span>
+                                </div>
+                                {Array.isArray(kategori.produk) &&
+                                  kategori.produk.length > 0 && (
+                                    <div className="divide-y divide-gray-200">
+                                      {kategori.produk.map((p: any) => (
+                                        <div
+                                          key={p.id}
+                                          className="flex items-center justify-between py-2"
+                                        >
+                                          <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-900">
+                                              {p.nama}
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                              {p.nama_kategori}
+                                            </span>
+                                          </div>
+                                          <div className="text-right">
+                                            <div className="text-xs text-gray-500">
+                                              Qty:{' '}
+                                              <span className="font-semibold text-gray-700">
+                                                {p.jumlah_terbeli}
+                                              </span>
+                                            </div>
+                                            <div className="text-sm font-semibold text-gray-900">
+                                              Rp {Number(p.harga).toLocaleString('id-ID')}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
                 </div>
               </div>
             )}

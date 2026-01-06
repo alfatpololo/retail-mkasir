@@ -803,9 +803,15 @@ export default function POSPage() {
       const customerName = manualCustomerName.trim() || 'Tidak ada nama pelanggan';
       const finalChange = isDebt ? 0 : Math.max(0, finalPaidAmount - total);
 
+      // Ambil bukakas_id aktif dari localStorage (diset oleh modul kasir)
+      const activeBukakasId = getBukakasId();
+      if (!activeBukakasId) {
+        throw new Error('ID bukakas aktif tidak ditemukan. Silakan buka kasir terlebih dahulu.');
+      }
+
       // Siapkan payload sesuai format API
       const payload = {
-        bukakas_id: 1, // Default, sesuaikan jika ada API untuk mendapatkan bukakas aktif
+        bukakas_id: activeBukakasId,
         nama_customer: customerName,
         no_tlpn: manualCustomerPhone || '',
         transaction_method_id: transactionMethodId,

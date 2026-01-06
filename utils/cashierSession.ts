@@ -134,6 +134,7 @@ export async function shouldShowBukaKasir(): Promise<{
     const json = await res.json().catch(() => ({} as any));
     const success = json.success === true;
     const bukakasData = json.data;
+    const message: string = json.message || '';
 
     // Cek apakah benar-benar ada bukakas aktif
     const hasBukakasId = !!(bukakasData?.id || bukakasData?.bukakas_id || bukakasData?.bukakasId);
@@ -145,6 +146,30 @@ export async function shouldShowBukaKasir(): Promise<{
       hasId: hasBukakasId,
       status: res.status 
     });
+
+    // Jika server bilang tidak ada bukakas aktif secara eksplisit,
+    // dan pesannya "No active bukakas found", coba otomatis buka kasir
+    if (!success && message === 'No active bukakas found') {
+      console.log(
+        'Tidak ada bukakas aktif, mencoba otomatis buka kasir dengan saldo awal 0'
+      );
+
+      try {
+        const saldoAwal = getStatusUangBukakasir() || 0;
+        await bukaKasirApi({
+          saldoAwal,
+          catatan: '',
+          permanen: false,
+        });
+
+        // Setelah buka kasir berhasil, anggap tidak perlu buka/tutup lagi sekarang
+        // (bukakasId dan status lokal sudah di-set di bukaKasirApi -> markOpened)
+        return { needOpen: false, needClose: false };
+      } catch (e) {
+        console.error('Gagal otomatis buka kasir:', e);
+        // Kalau gagal otomatis buka kasir, lanjut ke flow lama (needOpen: true)
+      }
+    }
 
     // Jika ada bukakas aktif di server (harus success DAN ada data DAN ada id)
     if (success && bukakasData && hasBukakasId) {
@@ -335,6 +360,10 @@ export async function fetchTutupKasirData(): Promise<TutupKasirData | null> {
 
   const bukakasId = getBukakasId();
   const payload: Record<string, unknown> = {};
+  const userId = getLoggedInUserId();
+  if (userId) {
+    payload.user_id = userId;
+  }
   if (bukakasId) {
     payload.bukakas_id = bukakasId;
   }
