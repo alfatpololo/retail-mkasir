@@ -3,12 +3,18 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logoutUser } from '@/utils/storage';
+import { useState, useEffect } from 'react';
+
+interface SubMenuItem {
+  label: string;
+  path: string;
+}
 
 interface MenuItem {
   icon: string;
   label: string;
   path: string;
-  children?: MenuItem[];
+  submenu?: SubMenuItem[];
 }
 
 interface MenuSection {
@@ -25,24 +31,23 @@ const sections: MenuSection[] = [
     title: 'Manajemen',
     items: [
       {
-        icon: 'ri-price-tag-3-line',
-        label: 'Kategori Produk',
-        path: '/categories',
-      },
-      {
         icon: 'ri-box-3-line',
         label: 'Produk',
         path: '/products',
-      },
-      {
-        icon: 'ri-exchange-dollar-line',
-        label: 'Piutang',
-        path: '/debts',
+        submenu: [
+          { label: 'Daftar Produk', path: '/products' },
+          { label: 'Kategori', path: '/categories' },
+        ],
       },
       {
         icon: 'ri-user-line',
         label: 'Pelanggan',
         path: '/customers',
+      },
+      {
+        icon: 'ri-exchange-dollar-line',
+        label: 'Piutang',
+        path: '/debts',
       },
     ],
   },
@@ -58,16 +63,12 @@ const sections: MenuSection[] = [
         icon: 'ri-file-chart-line',
         label: 'Laporan',
         path: '/reports',
-      },
-      {
-        icon: 'ri-bar-chart-box-line',
-        label: 'Laporan Pelanggan',
-        path: '/customer-report',
-      },
-      {
-        icon: 'ri-money-dollar-circle-line',
-        label: 'Ringkasan Pembayaran',
-        path: '/payment-summary',
+        submenu: [
+          { label: 'Laporan Penjualan', path: '/reports' },
+          { label: 'Ringkasan Pembayaran', path: '/payment-summary' },
+          { label: 'Produk Terlaris', path: '/bestseller-products' },
+          { label: 'Laporan Pelanggan', path: '/customer-report' },
+        ],
       },
     ],
   },
@@ -76,63 +77,27 @@ const sections: MenuSection[] = [
     items: [
       {
         icon: 'ri-archive-line',
-        label: 'Restock',
+        label: 'Stok',
         path: '/restock',
-      },
-      {
-        icon: 'ri-history-line',
-        label: 'History Stok',
-        path: '/stock-history',
-      },
-      {
-        icon: 'ri-file-list-3-line',
-        label: 'Stock Opname',
-        path: '/stock-opname',
-      },
-      {
-        icon: 'ri-exchange-line',
-        label: 'Konversi Stok',
-        path: '/stock-conversion',
+        submenu: [
+          { label: 'Restock', path: '/restock' },
+          { label: 'History Stok', path: '/stock-history' },
+          { label: 'Stock Opname', path: '/stock-opname' },
+          { label: 'Konversi Stok', path: '/stock-conversion' },
+        ],
       },
     ],
   },
   {
-    title: 'Manajemen Lainnya',
+    title: 'Pengaturan',
     items: [
       {
-        icon: 'ri-user-star-line',
-        label: 'Karyawan',
-        path: '/employees',
-      },
-      {
-        icon: 'ri-money-cny-circle-line',
-        label: 'Pengeluaran',
-        path: '/expenses',
-      },
-      {
-        icon: 'ri-fire-line',
-        label: 'Produk Terlaris',
-        path: '/bestseller-products',
-      },
-      {
-        icon: 'ri-shield-user-line',
-        label: 'Roles',
-        path: '/roles',
-      },
-      {
-        icon: 'ri-store-2-line',
-        label: 'Profil Bisnis',
-        path: '/business-profile',
-      },
-    ],
-  },
-  {
-    title: 'Setting',
-    items: [
-      {
-        icon: 'ri-printer-line',
-        label: 'Setting Printer',
+        icon: 'ri-settings-3-line',
+        label: 'Pengaturan',
         path: '/settings',
+        submenu: [
+          { label: 'Setting Printer', path: '/settings' },
+        ],
       },
     ],
   },
@@ -147,7 +112,7 @@ const sections: MenuSection[] = [
       {
         icon: 'ri-user-3-line',
         label: 'Profile',
-            path: '/profile-detail',
+        path: '/profile-detail',
       },
     ],
   },
@@ -161,11 +126,26 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // STATE UNTUK SUBMENU
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  // Close submenu when route changes
+  useEffect(() => {
+    setOpenMenus({});
+  }, [pathname]);
+
+  const toggleMenu = (label: string) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
+
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
     // handle paths with query params by matching pathname part
     const basePath = path.split('?')[0];
-    return pathname === basePath;
+    return pathname === basePath || pathname.startsWith(basePath + '/');
   };
 
   const handleLogout = () => {
@@ -201,39 +181,89 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
               {section.title}
             </p>
             <div className="space-y-1">
-              {section.items.map((item) => (
-                <div key={item.path} className="space-y-1">
-                  <Link
-                    href={item.path}
-                    className={`flex items-center gap-2.5 md:gap-3 px-2.5 md:px-3 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-medium transition-all cursor-pointer ${
-                      isActive(item.path)
-                        ? 'bg-emerald-500 text-white shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span className={`${item.icon} text-base md:text-lg`}></span>
-                    <span>{item.label}</span>
-                  </Link>
-                  {item.children && (
-                    <div className="pl-6 md:pl-8 space-y-1">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.path}
-                          href={child.path}
-                          className={`flex items-center gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm transition-all cursor-pointer ${
-                            isActive(child.path)
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'text-gray-600 hover:bg-gray-100'
+              {section.items.map((item) => {
+                const hasSubmenu = item.submenu && item.submenu.length > 0;
+                const isSubmenuActive = hasSubmenu
+                  ? item.submenu?.some((sub) => isActive(sub.path))
+                  : false;
+                const isMenuOpen = openMenus[item.label] || isSubmenuActive;
+
+                return (
+                  <div key={item.path} className="space-y-1">
+                    {hasSubmenu ? (
+                      <>
+                        {/* PARENT MENU DENGAN SUBMENU */}
+                        <button
+                          onClick={() => toggleMenu(item.label)}
+                          className={`w-full flex items-center justify-between gap-2.5 md:gap-3 px-2.5 md:px-3 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-medium transition-all cursor-pointer ${
+                            isMenuOpen
+                              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm'
+                              : 'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
-                          <span className={`${child.icon} text-sm md:text-base`}></span>
-                          <span>{child.label}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                          <div className="flex items-center gap-2.5 md:gap-3">
+                            <span className={`${item.icon} text-base md:text-lg`}></span>
+                            <span>{item.label}</span>
+                          </div>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-300 ${
+                              isMenuOpen ? 'rotate-180' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+
+                        {/* SUBMENU */}
+                        <div
+                          className={`transition-all duration-300 overflow-hidden ${
+                            isMenuOpen
+                              ? 'max-h-96 opacity-100 mt-1'
+                              : 'max-h-0 opacity-0'
+                          }`}
+                        >
+                          <div className="pl-6 md:pl-8 space-y-1">
+                            {item.submenu?.map((sub) => (
+                              <Link
+                                key={sub.path}
+                                href={sub.path}
+                                className={`block px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm transition-all cursor-pointer ${
+                                  isActive(sub.path)
+                                    ? 'bg-emerald-50 text-emerald-700 font-semibold border-l-4 border-emerald-500'
+                                    : 'text-gray-600 hover:bg-gray-100 font-medium'
+                                }`}
+                              >
+                                {sub.label}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      /* NORMAL MENU ITEM TANPA SUBMENU */
+                      <Link
+                        href={item.path}
+                        className={`flex items-center gap-2.5 md:gap-3 px-2.5 md:px-3 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-medium transition-all cursor-pointer ${
+                          isActive(item.path)
+                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className={`${item.icon} text-base md:text-lg`}></span>
+                        <span>{item.label}</span>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

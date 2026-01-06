@@ -164,13 +164,13 @@ export default function CustomerReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-0 2xl:pl-64 pb-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Laporan Pelanggan
             </h1>
             <p className="text-gray-600 text-sm">
@@ -179,63 +179,63 @@ export default function CustomerReportPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-              <span className="ri-user-3-line text-indigo-600 text-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-user-3-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Pelanggan</p>
-              <p className="text-xl font-bold text-gray-900">{totalPelanggan}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Pelanggan</p>
+              <p className="text-2xl font-bold text-gray-900">{totalPelanggan}</p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <span className="ri-money-dollar-circle-line text-emerald-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-money-dollar-circle-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Pendapatan</p>
-              <p className="text-xl font-bold text-emerald-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Pendapatan</p>
+              <p className="text-2xl font-bold text-emerald-600">
                 {formatCurrency(totalPendapatan)}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <span className="ri-shopping-cart-2-line text-violet-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-shopping-cart-2-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Transaksi</p>
-              <p className="text-xl font-bold text-violet-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Transaksi</p>
+              <p className="text-2xl font-bold text-violet-600">
                 {totalTransaksi}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <span className="ri-bar-chart-2-line text-amber-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-bar-chart-2-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Rata-rata Belanja</p>
-              <p className="text-xl font-bold text-amber-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Rata-rata Belanja</p>
+              <p className="text-2xl font-bold text-amber-600">
                 {formatCurrency(rataRataBelanja)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-4 flex flex-col md:flex-row items-center gap-3 border-b border-gray-200">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50">
+          <div className="p-4 flex flex-col md:flex-row items-center gap-3 border-b border-gray-200 bg-gray-50/50">
             <div className="flex items-center gap-2 w-full md:w-auto">
               <select
                 value={statusFilter}
                 onChange={(e) =>
                   setStatusFilter(e.target.value as 'all' | 'VIP' | 'Regular')
                 }
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-[140px]"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 min-w-[140px] bg-white"
               >
                 <option value="all">Semua Status</option>
                 <option value="VIP">VIP</option>
@@ -243,27 +243,27 @@ export default function CustomerReportPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-0 md:ml-auto">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
-              <span className="text-xs text-gray-400">-</span>
+              <span className="text-sm text-gray-400">-</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
             </div>
 
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer bg-white transition-colors"
             >
-              <span className="ri-download-2-line text-sm" />
+              <span className="ri-download-2-line text-base" />
               Export
             </button>
           </div>
@@ -282,32 +282,32 @@ export default function CustomerReportPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-y border-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Nama Pelanggan
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Total Transaksi
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Total Belanja
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Rata-rata Transaksi
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Kunjungan Terakhir
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Frekuensi
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {!loading && !error && rows.length === 0 && (
                   <tr>
                     <td
@@ -320,37 +320,38 @@ export default function CustomerReportPage() {
                 )}
 
                 {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                  <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <span
-                          className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold ${avatarColor(
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${avatarColor(
                             row.nama
                           )}`}
                         >
-                          {row.nama[0]}
+                          {row.nama[0]?.toUpperCase() || '?'}
                         </span>
-                        <span>{row.nama}</span>
+                        <span className="font-medium">{row.nama}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       {row.status === 'VIP' ? (
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
                           VIP
                         </span>
                       ) : (
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                           Regular
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
-                      {row.totalTransaksi.toLocaleString('id-ID')} transaksi
+                      <span className="font-medium">{row.totalTransaksi.toLocaleString('id-ID')}</span>
+                      <span className="text-gray-500 ml-1">transaksi</span>
                     </td>
-                    <td className="px-4 py-4 text-sm text-right text-emerald-700 whitespace-nowrap">
+                    <td className="px-4 py-4 text-sm text-right text-emerald-700 whitespace-nowrap font-semibold">
                       {formatCurrency(row.totalBelanja)}
                     </td>
-                    <td className="px-4 py-4 text-sm text-right text-gray-700 whitespace-nowrap">
+                    <td className="px-4 py-4 text-sm text-right text-gray-700 whitespace-nowrap font-medium">
                       {formatCurrency(row.rataTransaksi)}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
@@ -362,17 +363,17 @@ export default function CustomerReportPage() {
                     </td>
                     <td className="px-4 py-4 text-sm text-center whitespace-nowrap">
                       {row.frekuensi === 'Tinggi' && (
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                           Tinggi
                         </span>
                       )}
                       {row.frekuensi === 'Sedang' && (
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                           Sedang
                         </span>
                       )}
                       {row.frekuensi === 'Rendah' && (
-                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600">
+                        <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                           Rendah
                         </span>
                       )}
@@ -383,17 +384,16 @@ export default function CustomerReportPage() {
             </table>
           </div>
 
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
-              Menampilkan {rows.length} dari {totalItems} pelanggan (halaman {page}{' '}
-              dari {totalPages})
+              Menampilkan <span className="font-semibold">{rows.length}</span> dari <span className="font-semibold">{totalItems}</span> pelanggan (halaman <span className="font-semibold">{page}</span> dari <span className="font-semibold">{totalPages}</span>)
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page === 1 || loading}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed bg-white transition-colors"
               >
                 Previous
               </button>
@@ -401,7 +401,7 @@ export default function CustomerReportPage() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={page === totalPages || loading}
-                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next
               </button>

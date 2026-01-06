@@ -186,14 +186,14 @@ export default function RestockPage() {
   }, [page, startDate, endDate, status]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Pembelian Stok
             </h1>
             <p className="text-gray-600 text-sm">
@@ -204,7 +204,7 @@ export default function RestockPage() {
           </div>
           <button
             type="button"
-            className="px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors cursor-pointer flex items-center gap-2"
+            className="px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm"
           >
             <span className="ri-add-line w-5 h-5 flex items-center justify-center" />
             Tambah Pembelian
@@ -212,34 +212,34 @@ export default function RestockPage() {
         </div>
 
         {/* Statistik Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <div className="flex items-center p-3 rounded-lg bg-emerald-50 border border-emerald-100">
-            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center mr-3">
-              <span className="ri-shopping-bag-3-line text-emerald-600" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-shopping-bag-3-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Item</p>
-              <p className="text-lg font-bold text-emerald-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Item</p>
+              <p className="text-2xl font-bold text-emerald-600">
                 {totalItem}
               </p>
             </div>
           </div>
-          <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-100">
-            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-              <span className="ri-stack-line text-blue-600" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-stack-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Qty</p>
-              <p className="text-lg font-bold text-blue-700">{totalQty}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Qty</p>
+              <p className="text-2xl font-bold text-blue-600">{totalQty}</p>
             </div>
           </div>
-          <div className="flex items-center p-3 rounded-lg bg-rose-50 border border-rose-100">
-            <div className="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center mr-3">
-              <span className="ri-money-cny-box-line text-rose-600" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-money-cny-box-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Belanja</p>
-              <p className="text-lg font-bold text-rose-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Belanja</p>
+              <p className="text-2xl font-bold text-rose-600">
                 {formatCurrency(totalBelanja)}
               </p>
             </div>
@@ -247,8 +247,8 @@ export default function RestockPage() {
         </div>
 
         {/* Search & Filter */}
-        <div className="bg-white rounded-xl border border-gray-200 mb-4">
-          <div className="p-4 flex flex-col md:flex-row gap-3 md:items-center">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm mb-6">
+          <div className="p-4 flex flex-col md:flex-row gap-3 md:items-center bg-gray-50/50 border-b border-gray-200">
             <div className="flex-1 relative">
               <span className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -300,7 +300,7 @@ export default function RestockPage() {
         </div>
 
         {/* Tabel Data */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm overflow-hidden">
           {error && (
             <div className="px-4 py-3 text-sm text-red-600 border-b border-gray-200">
               {error}
@@ -324,72 +324,82 @@ export default function RestockPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Tanggal
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Supplier
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       No. Invoice
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       SKU
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Nama Produk
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Qty
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Satuan
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Harga
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Stok Sebelum
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Stok Sesudah
                     </th>
-                    <th className="px-4 py-3 text-right font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Nilai Stok
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="bg-white divide-y divide-gray-100">
                   {rows.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-2">
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
                         {formatDate(item.tanggal)}
                       </td>
-                      <td className="px-4 py-2">{item.supplier || '-'}</td>
-                      <td className="px-4 py-2">{item.noInvoice}</td>
-                      <td className="px-4 py-2">{item.sku}</td>
-                      <td className="px-4 py-2">{item.namaProduk}</td>
-                      <td className="px-4 py-2 text-right">{item.qty}</td>
-                      <td className="px-4 py-2">{item.satuan || '-'}</td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">{item.supplier || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap font-medium">{item.noInvoice}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">{item.sku}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap font-medium">{item.namaProduk}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 text-right whitespace-nowrap font-medium">{item.qty}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">{item.satuan || '-'}</td>
+                      <td className="px-4 py-4 text-sm text-gray-700 text-right whitespace-nowrap">
                         {formatCurrency(item.harga)}
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-4 text-sm text-gray-700 text-right whitespace-nowrap">
                         {item.stokSebelum}
                       </td>
-                      <td className="px-4 py-2 text-right text-emerald-600 font-semibold">
+                      <td className="px-4 py-4 text-sm text-right text-emerald-600 font-semibold whitespace-nowrap">
                         {item.stokSesudah}
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-4 text-sm text-gray-900 text-right whitespace-nowrap font-semibold">
                         {formatCurrency(item.nilaiStok)}
                       </td>
-                      <td className="px-4 py-2">
-                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                          {item.status}
-                        </span>
+                      <td className="px-4 py-4 text-sm whitespace-nowrap">
+                        {mapStatus(item.status) === 'Selesai' ? (
+                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            {mapStatus(item.status)}
+                          </span>
+                        ) : mapStatus(item.status) === 'Pending' ? (
+                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                            {mapStatus(item.status)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
+                            {mapStatus(item.status)}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -399,16 +409,16 @@ export default function RestockPage() {
           )}
 
           {/* Pagination */}
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm">
+          <div className="px-4 py-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
             <span className="text-gray-600">
-              Halaman {page} dari {totalPages}
+              Halaman <span className="font-semibold">{page}</span> dari <span className="font-semibold">{totalPages}</span>
             </span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1 || loading}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 cursor-pointer"
+                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white cursor-pointer bg-white transition-colors"
               >
                 Sebelumnya
               </button>
@@ -416,7 +426,7 @@ export default function RestockPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages || loading}
-                className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 cursor-pointer"
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-600 cursor-pointer transition-colors"
               >
                 Berikutnya
               </button>

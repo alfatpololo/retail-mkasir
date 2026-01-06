@@ -4,7 +4,7 @@ import Sidebar from '@/components/Sidebar';
 
 export default function ChangePasswordPage() {
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
       <div className="max-w-md mx-auto px-6 py-8">

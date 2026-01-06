@@ -183,22 +183,22 @@ export default function StockOpnamePage() {
 
   const getStatusColors = (status: string) => {
     if (status === 'selesai' || status.toLowerCase() === 'selesai') {
-      return 'bg-green-50 text-green-700 border-green-200';
+      return 'bg-green-100 text-green-800 border-green-200';
     }
     if (status === 'proses' || status.toLowerCase() === 'proses') {
-      return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+      return 'bg-amber-100 text-amber-800 border-amber-200';
     }
-    return 'bg-gray-50 text-gray-700 border-gray-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Stok Opname
             </h1>
             <p className="text-gray-600 text-sm">
@@ -207,43 +207,55 @@ export default function StockOpnamePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-1.5">
-            <div className="text-xs font-medium text-gray-500 uppercase">
-              Total Opname
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-file-list-3-line text-white text-xl" />
             </div>
-            <div className="text-2xl font-bold text-emerald-600">
-              {summary.totalOpname}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-1.5">
-            <div className="text-xs font-medium text-gray-500 uppercase">
-              Selesai
-            </div>
-            <div className="text-2xl font-bold text-green-600">
-              {summary.selesai}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Opname</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {summary.totalOpname}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-1.5">
-            <div className="text-xs font-medium text-gray-500 uppercase">
-              Proses
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-checkbox-circle-line text-white text-xl" />
             </div>
-            <div className="text-2xl font-bold text-amber-500">
-              {summary.proses}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Selesai</p>
+              <p className="text-2xl font-bold text-green-600">
+                {summary.selesai}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col gap-1.5">
-            <div className="text-xs font-medium text-gray-500 uppercase">
-              Draft
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-time-line text-white text-xl" />
             </div>
-            <div className="text-2xl font-bold text-gray-600">
-              {summary.draft}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Proses</p>
+              <p className="text-2xl font-bold text-amber-600">
+                {summary.proses}
+              </p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-gray-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-draft-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Draft</p>
+              <p className="text-2xl font-bold text-gray-600">
+                {summary.draft}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl mb-6">
-          <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-end gap-3">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm mb-6">
+          <div className="p-4 border-b border-gray-200 bg-gray-50/50 flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex-1 flex flex-col gap-3 md:flex-row md:items-end">
               <div className="flex-1 relative">
                 <span className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -334,36 +346,36 @@ export default function StockOpnamePage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Tanggal
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Kode Opname
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Total Item
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Sudah Dicek
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Sesuai
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Selisih
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Total Selisih Nilai
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {!loading && !error && items.length === 0 && (
                   <tr>
                     <td
@@ -378,38 +390,40 @@ export default function StockOpnamePage() {
                 {!loading &&
                   !error &&
                   items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                         {item.tanggal}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {item.kodeOpname}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-700">
-                        {item.totalItem} item
+                      <td className="px-4 py-4 text-right text-sm text-gray-700">
+                        <span className="font-medium">{item.totalItem}</span>
+                        <span className="text-gray-500 ml-1">item</span>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-700">
-                        {item.sudahDicek} item
+                      <td className="px-4 py-4 text-right text-sm text-gray-700">
+                        <span className="font-medium">{item.sudahDicek}</span>
+                        <span className="text-gray-500 ml-1">item</span>
                       </td>
-                      <td className="px-4 py-3 text-right text-emerald-600 font-semibold">
+                      <td className="px-4 py-4 text-right text-sm text-emerald-600 font-semibold">
                         {item.sesuai} item
                       </td>
-                      <td className="px-4 py-3 text-right text-red-500 font-semibold">
+                      <td className="px-4 py-4 text-right text-sm text-red-600 font-semibold">
                         {item.selisih} item
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColors(
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColors(
                             item.status
                           )}`}
                         >
                           {item.statusLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                         {item.user}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-900 font-semibold">
+                      <td className="px-4 py-4 text-right text-sm text-gray-900 font-semibold">
                         {item.totalSelisihNilai.toLocaleString('id-ID', {
                           style: 'currency',
                           currency: 'IDR',
@@ -422,17 +436,16 @@ export default function StockOpnamePage() {
             </table>
           </div>
 
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="p-4 border-t border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
-              Menampilkan {items.length} dari {totalItems} data (halaman {page} dari{' '}
-              {totalPages})
+              Menampilkan <span className="font-semibold">{items.length}</span> dari <span className="font-semibold">{totalItems}</span> data (halaman <span className="font-semibold">{page}</span> dari <span className="font-semibold">{totalPages}</span>)
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page === 1 || loading}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white transition-colors"
               >
                 Sebelumnya
               </button>
@@ -440,7 +453,7 @@ export default function StockOpnamePage() {
                 type="button"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={page === totalPages || loading}
-                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Berikutnya
               </button>
