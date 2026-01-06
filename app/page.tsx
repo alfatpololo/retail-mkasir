@@ -15,6 +15,8 @@ import {
   TutupKasirData,
 } from '@/utils/cashierSession';
 import { logoutUser } from '@/utils/storage';
+import { THEMES, getCurrentTheme, setTheme, applyTheme, type ThemeColor } from '@/utils/theme';
+import { registerShortcuts, listenToTauriShortcuts, SHORTCUTS } from '@/utils/keyboardShortcuts';
 
 interface Product {
   id: string;
@@ -134,6 +136,8 @@ export default function POSPage() {
   const [processingTutupKasir, setProcessingTutupKasir] = useState(false);
   const [catatanTutupKasir, setCatatanTutupKasir] = useState('');
   const [showDialogSetelahTutupKasir, setShowDialogSetelahTutupKasir] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<ThemeColor>(THEMES[0]);
   const mobileSearchRef = useRef<HTMLInputElement | null>(null);
   const desktopSearchRef = useRef<HTMLInputElement | null>(null);
   const isInitialMount = useRef(true); // Track initial mount untuk mencegah double fetch
@@ -181,6 +185,23 @@ export default function POSPage() {
       router.push('/login');
     }
   }, [router]);
+
+  // Load theme on mount
+  useEffect(() => {
+    const theme = getCurrentTheme();
+    setCurrentTheme(theme);
+    applyTheme(theme.id);
+  }, []);
+
+  // Handle theme change
+  const handleThemeChange = (themeId: string) => {
+    const theme = THEMES.find((t) => t.id === themeId);
+    if (theme) {
+      setCurrentTheme(theme);
+      setTheme(themeId);
+      setShowThemeModal(false);
+    }
+  };
 
   // Fokus otomatis ke kolom scan / cari produk untuk memudahkan kasir
   const focusSearchInput = () => {
@@ -1148,7 +1169,7 @@ export default function POSPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden md:ml-0 2xl:ml-64">
         {/* Mobile Header */}
-        <div className="md:hidden bg-white border-b px-4 py-3 flex items-center gap-3">
+        <div className="md:hidden bg-emerald-500 mx-3 mt-3 rounded-xl shadow-lg px-3 py-3 flex items-center gap-3">
           <div className="flex-1 relative">
             <input
               type="text"
@@ -1164,9 +1185,15 @@ export default function POSPage() {
               ref={mobileSearchRef}
               className="w-full pl-3 pr-10 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <i className="ri-barcode-line text-lg text-gray-400"></i>
-            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <i className="ri-close-line text-lg text-gray-400"></i>
+              </button>
+            )}
             {searchQuery && filteredProducts.filter(p => p.stock > 0).length > 0 && (
               <div className="absolute z-30 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {filteredProducts.filter(p => p.stock > 0).slice(0, 8).map((p) => (
@@ -1201,6 +1228,13 @@ export default function POSPage() {
             )}
           </div>
           <button
+            onClick={() => setShowThemeModal(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+            title="Ubah Tema"
+          >
+            <i className="ri-palette-line text-xl text-white"></i>
+          </button>
+          <button
             onClick={() => setShowCart(!showCart)}
             className="relative w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100"
           >
@@ -1214,7 +1248,7 @@ export default function POSPage() {
         </div>
 
         {/* Tablet & Desktop Header */}
-        <div className="hidden md:block bg-white border-b px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-4">
+        <div className="hidden md:block bg-emerald-500 mx-3 md:mx-3 lg:mx-6 mt-3 md:mt-3 lg:mt-6 rounded-xl md:rounded-2xl shadow-lg px-3 md:px-4 lg:px-6 py-2.5 md:py-3 lg:py-4">
           <div className="flex items-center gap-2 md:gap-3">
             <div className="flex-1 relative">
               <input
@@ -1231,10 +1265,15 @@ export default function POSPage() {
                 ref={desktopSearchRef}
                 className="w-full pl-3 md:pl-4 pr-10 md:pr-12 py-2 md:py-2.5 lg:py-3 border border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
               />
-              <div className="absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 md:gap-2">
-                <i className="ri-barcode-line text-lg md:text-xl text-gray-400"></i>
-                <i className="ri-search-line text-lg md:text-xl text-gray-400"></i>
-              </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 w-6 h-6 md:w-7 md:h-7 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  <i className="ri-close-line text-lg md:text-xl text-gray-400"></i>
+                </button>
+              )}
               {searchQuery && filteredProducts.filter(p => p.stock > 0).length > 0 && (
                 <div className="absolute z-30 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
                   {filteredProducts.filter(p => p.stock > 0).slice(0, 10).map((p) => (
@@ -1269,28 +1308,21 @@ export default function POSPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <div className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg border ${
+              <button
+                onClick={() => setShowThemeModal(true)}
+                className="hidden lg:flex items-center justify-center w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                title="Ubah Tema"
+              >
+                <i className="ri-palette-line text-lg md:text-xl text-white"></i>
+              </button>
+              <button className={`hidden lg:flex items-center justify-center w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-lg ${
                 printer.isConnected 
-                  ? 'border-gray-200 bg-gray-50' 
-                  : 'border-red-600 bg-red-50'
-              }`}>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    printer.isConnected ? 'bg-emerald-500' : 'bg-red-600'
-                  }`}
-                ></span>
-                <span className={`text-[11px] font-medium ${
-                  printer.isConnected 
-                    ? 'text-gray-700' 
-                    : 'text-red-700'
-                }`}>
-                  {printer.isConnected
-                    ? `Printer: ${printer.deviceName || 'Terhubung'}`
-                    : 'Printer belum terhubung'}
-                </span>
-              </div>
-              <button className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                <i className="ri-camera-line text-lg md:text-xl text-gray-700"></i>
+                  ? 'bg-white/20 hover:bg-white/30' 
+                  : 'bg-red-500/20 hover:bg-red-500/30'
+              } transition-colors`}>
+                <i className={`ri-printer-line text-lg md:text-xl ${
+                  printer.isConnected ? 'text-white' : 'text-red-600'
+                }`}></i>
               </button>
             </div>
           </div>
@@ -2431,6 +2463,64 @@ export default function POSPage() {
                 <i className="ri-logout-box-line"></i>
                 Logout
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Theme Selector Modal */}
+      {showThemeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setShowThemeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-5 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                    <i className="ri-palette-line text-2xl"></i>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Pilih Tema</h2>
+                    <p className="text-emerald-50 text-sm">Ubah warna aplikasi</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowThemeModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  <i className="ri-close-line text-xl"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="grid grid-cols-5 gap-3">
+                {THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => handleThemeChange(theme.id)}
+                    className={`relative group aspect-square rounded-xl overflow-hidden transition-all ${
+                      currentTheme.id === theme.id
+                        ? 'ring-4 ring-offset-2 ring-gray-400 scale-105'
+                        : 'hover:scale-105 hover:shadow-lg'
+                    }`}
+                    style={{
+                      background: theme.gradient,
+                    }}
+                    title={theme.name}
+                  >
+                    {currentTheme.id === theme.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <i className="ri-check-line text-white text-xl"></i>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-xs font-medium py-1 px-2 text-center">
+                      {theme.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -1,0 +1,28 @@
+[package]
+name = "retail-mkasir"
+version = "0.1.0"
+description = "Retail POS System"
+authors = ["MKASIR"]
+license = ""
+repository = ""
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "2.1", features = [] }
+
+[dependencies]
+tauri = { version = "2.1", features = ["macos-private-api"] }
+tauri-plugin-shell = { version = "2.1" }
+tauri-plugin-dialog = { version = "2.1" }
+tauri-plugin-fs = { version = "2.1" }
+tauri-plugin-http = { version = "2.1" }
+tauri-plugin-clipboard-manager = { version = "2.1" }
+tauri-plugin-notification = { version = "2.1" }
+tauri-plugin-global-shortcut = { version = "2.1" }
+
+[features]
+# This feature is used for production builds or when frontendDist points to the filesystem
+custom-protocol = [ "tauri/custom-protocol" ]
+

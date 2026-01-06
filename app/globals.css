@@ -4,11 +4,20 @@
 @tailwind utilities;
 
 :root {
-  --primary-green: #16a34a; /* unified green */
-  --primary-green-strong: #0f7d36; /* darker end for gradient */
-  --primary-green-light: #ecfdf3;
-  --primary-green-soft: #d1fae5;
-  --primary-green-gradient: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-strong) 100%);
+  /* Dynamic theme variables - will be set by JavaScript */
+  --primary-color: #16a34a;
+  --primary-color-dark: #0f7d36;
+  --primary-color-light: #ecfdf3;
+  --primary-color-soft: #d1fae5;
+  --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%);
+  
+  /* Legacy support - map to new variables */
+  --primary-green: var(--primary-color);
+  --primary-green-strong: var(--primary-color-dark);
+  --primary-green-light: var(--primary-color-light);
+  --primary-green-soft: var(--primary-color-soft);
+  --primary-green-gradient: var(--primary-gradient);
+  
   --accent-orange: #f59e0b;
   --accent-orange-strong: #d97706;
   --accent-orange-gradient: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-strong) 100%);
@@ -18,23 +27,28 @@
   /* Backgrounds (convert greens to gradient) */
   .bg-emerald-500,
   .bg-green-500 {
-    background-image: var(--primary-green-gradient) !important;
+    background-image: var(--primary-gradient) !important;
     background-color: transparent !important;
   }
   .hover\:bg-emerald-600:hover,
   .hover\:bg-green-600:hover,
   .hover\:bg-emerald-500:hover,
   .hover\:bg-green-500:hover {
-    background-image: var(--primary-green-gradient) !important;
+    background-image: var(--primary-gradient) !important;
     background-color: transparent !important;
   }
   .bg-emerald-50,
   .bg-green-50 {
-    background-color: var(--primary-green-light) !important;
+    background-color: var(--primary-color-light) !important;
   }
   .bg-emerald-100,
   .bg-green-100 {
-    background-color: var(--primary-green-soft) !important;
+    background-color: var(--primary-color-soft) !important;
+  }
+
+  /* Light gradient for navbar backgrounds */
+  .bg-emerald-gradient-light {
+    background: linear-gradient(135deg, var(--primary-color-light) 0%, var(--primary-color-soft) 100%);
   }
 
   /* Text */
@@ -44,13 +58,13 @@
   .text-green-600,
   .text-emerald-700,
   .text-green-700 {
-    color: var(--primary-green) !important;
+    color: var(--primary-color) !important;
   }
 
   /* Borders */
   .border-emerald-500,
   .border-green-500 {
-    border-color: var(--primary-green) !important;
+    border-color: var(--primary-color) !important;
   }
 
   /* Rings */
@@ -58,7 +72,7 @@
   .ring-green-500,
   .focus\:ring-emerald-500:focus,
   .focus\:ring-green-500:focus {
-    --tw-ring-color: var(--primary-green) !important;
+    --tw-ring-color: var(--primary-color) !important;
   }
 
   /* Accent orange gradient for "plus"/add buttons */

@@ -1,30 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Retail MKASIR - Point of Sale System
+
+Aplikasi Point of Sale (POS) modern untuk retail/minimarket yang dibangun dengan Next.js dan dapat di-build untuk desktop menggunakan Tauri.
 
 ## Getting Started
 
-First, run the development server:
+### Web Development
+
+First, install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Desktop Application (Tauri)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Untuk build aplikasi desktop, lihat dokumentasi lengkap di [TAURI_SETUP.md](./TAURI_SETUP.md).
+
+**Quick Start:**
+
+1. Install Rust (jika belum):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run development mode:
+   ```bash
+   npm run tauri:dev
+   ```
+
+4. Build untuk production:
+   ```bash
+   npm run tauri:build
+   ```
+
+## Available Scripts
+
+- `npm run dev` - Run Next.js development server (web)
+- `npm run build` - Build Next.js for production (web)
+- `npm run tauri:dev` - Run Tauri development mode (desktop)
+- `npm run tauri:build` - Build Tauri app for production (desktop)
+- `npm run lint` - Run ESLint
+
+## Features
+
+- 🎨 10 pilihan tema warna dengan gradient yang menarik
+- 🖨️ Dukungan printer untuk struk
+- 📱 Responsive design untuk mobile dan desktop
+- 🛒 Sistem cart dan checkout
+- 📊 Laporan dan transaksi
+- 🏷️ Manajemen produk dan kategori
+- 👥 Manajemen customer
+- 💰 Manajemen kasir dan tutup buka kasir
+
+## Tech Stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS
+- **Desktop:** Tauri 2.x
+- **Icons:** Remix Icon
+
+## Platform Support
+
+### Web
+- Modern browsers (Chrome, Firefox, Safari, Edge)
+
+### Desktop (via Tauri)
+- macOS (Apple Silicon & Intel)
+- Windows (x64)
+- Linux (x64)
+
+## Documentation
+
+- [Tauri Setup Guide](./TAURI_SETUP.md) - Panduan lengkap setup dan build Tauri
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Tauri Documentation](https://tauri.app/)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)

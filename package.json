@@ -4,7 +4,8 @@
     "next": "^16.0.10",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "recharts": "^3.0.2"
+    "recharts": "^3.0.2",
+    "@tauri-apps/api": "^2.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -17,14 +18,20 @@
     "eslint-config-next": "^16.0.10",
     "postcss": "^8.5.5",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@tauri-apps/cli": "^2.1.2"
   },
-  "name": "next-app",
+  "name": "retail-mkasir",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "icons:generate": "node scripts/generate-icons.js",
+    "icons:generate:mac": "./scripts/generate-icons-sips.sh"
   },
   "version": "0.1.0"
 }
