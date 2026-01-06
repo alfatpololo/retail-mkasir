@@ -14,6 +14,7 @@ import {
   fetchTutupKasirData,
   tutupKasirApi,
   getStatusUangBukakasir,
+  getBukakasId,
   TutupKasirData,
 } from '@/utils/cashierSession';
 import { logoutUser } from '@/utils/storage';
@@ -322,10 +323,12 @@ export default function POSPage() {
           }
         }
 
-        // Jika belum ada bukakas aktif, cek status_uang_bukakasir
+        // Jika belum ada bukakas aktif, cek apakah bukakas_id tidak ada
         if (needOpen) {
-          const status = getStatusUangBukakasir(); // 1 = auto, selain itu wajib popup
-          if (status === 1) {
+          const bukakasId = getBukakasId();
+          
+          // Jika bukakas_id tidak ada, langsung auto buka kasir
+          if (!bukakasId) {
             try {
               setLoadingKasir(true);
               // Auto buka kasir dengan saldo 0 dan catatan default
@@ -342,8 +345,28 @@ export default function POSPage() {
               setLoadingKasir(false);
             }
           } else {
-            // status_uang_bukakasir != 1 -> wajib popup buka kasir
-            setShowBukaKasirModal(true);
+            // Jika ada bukakas_id tapi needOpen true, cek status_uang_bukakasir
+            const status = getStatusUangBukakasir(); // 1 = auto, selain itu wajib popup
+            if (status === 1) {
+              try {
+                setLoadingKasir(true);
+                // Auto buka kasir dengan saldo 0 dan catatan default
+                await bukaKasirApi({
+                  saldoAwal: 0,
+                  catatan: 'Auto buka kasir',
+                  permanen: true,
+                });
+              } catch (e) {
+                console.error('Gagal auto buka kasir:', e);
+                // Kalau auto gagal, fallback ke popup manual
+                setShowBukaKasirModal(true);
+              } finally {
+                setLoadingKasir(false);
+              }
+            } else {
+              // status_uang_bukakasir != 1 -> wajib popup buka kasir
+              setShowBukaKasirModal(true);
+            }
           }
         }
       } catch (e) {
@@ -849,9 +872,15 @@ export default function POSPage() {
       const customerName = manualCustomerName.trim() || 'Tidak ada nama pelanggan';
       const finalChange = isDebt ? 0 : Math.max(0, finalPaidAmount - total);
 
+      // Ambil bukakas_id aktif dari localStorage (diset oleh modul kasir)
+      const activeBukakasId = getBukakasId();
+      if (!activeBukakasId) {
+        throw new Error('ID bukakas aktif tidak ditemukan. Silakan buka kasir terlebih dahulu.');
+      }
+
       // Siapkan payload sesuai format API
       const payload = {
-        bukakas_id: 1, // Default, sesuaikan jika ada API untuk mendapatkan bukakas aktif
+        bukakas_id: activeBukakasId,
         nama_customer: customerName,
         no_tlpn: manualCustomerPhone || '',
         transaction_method_id: transactionMethodId,

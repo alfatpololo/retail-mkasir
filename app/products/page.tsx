@@ -24,6 +24,7 @@ interface ApiProduct {
   gambar_url: string;
   harga: number;
   harga_modal: number;
+  harga_minimum?: number;
   stok: number;
   stok_minimum: number;
   akses_custom: boolean;
@@ -39,6 +40,7 @@ interface ApiProduct {
     id: number;
     qty: string;
     harga_jual: string;
+    harga_minimum?: string;
     operator: string;
   }[];
 }
@@ -87,6 +89,7 @@ interface Product {
    productQtyJson?: {
      qty: number;
      harga_jual: number;
+     harga_minimum?: number;
      operator: string;
    }[];
 }
@@ -127,8 +130,8 @@ export default function ProductsPage() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [productQtyRows, setProductQtyRows] = useState<
-    { qty: string; harga_jual: string; operator: string }[]
-  >([{ qty: '', harga_jual: '', operator: 'equals' }]);
+    { qty: string; harga_jual: string; harga_minimum: string; operator: string }[]
+  >([{ qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' }]);
 
   // State & ref untuk scanner barcode sederhana (kamera)
   const [showScanner, setShowScanner] = useState(false);
@@ -237,6 +240,7 @@ export default function ProductsPage() {
         productQtyJson: item.product_qty?.map((q) => ({
           qty: Number(q.qty),
           harga_jual: Number(q.harga_jual),
+          harga_minimum: q.harga_minimum ? Number(q.harga_minimum) : undefined,
           operator: q.operator,
         })),
       }));
@@ -572,6 +576,7 @@ export default function ProductsPage() {
             .map((row) => ({
               qty: Number(row.qty),
               harga_jual: Number(row.harga_jual),
+              harga_minimum: row.harga_minimum ? Number(row.harga_minimum) : undefined,
               operator: row.operator,
             }))
         : [];
@@ -657,7 +662,7 @@ export default function ProductsPage() {
         imageFile: null,
       });
       setCategorySearch('');
-      setProductQtyRows([{ qty: '', harga_jual: '', operator: 'equals' }]);
+      setProductQtyRows([{ qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' }]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan produk';
       setError(message);
@@ -950,7 +955,7 @@ export default function ProductsPage() {
 
       {editingProduct && (
         <EditProductModal
-          product={{
+            product={{
             id: String(editingProduct.id),
             sku: editingProduct.sku,
             name: editingProduct.name,
@@ -1137,13 +1142,13 @@ export default function ProductsPage() {
               <div className="grid grid-cols-3 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cost Price
+                    Harga Jual
                   </label>
                   <input
                     type="number"
-                    value={newProduct.costPrice}
+                    value={newProduct.sellPrice}
                     onChange={(e) =>
-                      setNewProduct({ ...newProduct, costPrice: e.target.value })
+                      setNewProduct({ ...newProduct, sellPrice: e.target.value })
                     }
                     placeholder="0"
                     min="0"
@@ -1155,13 +1160,13 @@ export default function ProductsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sell Price
+                    Harga Pokok
                   </label>
                   <input
                     type="number"
-                    value={newProduct.sellPrice}
+                    value={newProduct.costPrice}
                     onChange={(e) =>
-                      setNewProduct({ ...newProduct, sellPrice: e.target.value })
+                      setNewProduct({ ...newProduct, costPrice: e.target.value })
                     }
                     placeholder="0"
                     min="0"
@@ -1302,7 +1307,7 @@ export default function ProductsPage() {
                       onClick={() =>
                         setProductQtyRows([
                           ...productQtyRows,
-                          { qty: '', harga_jual: '', operator: 'equals' },
+                          { qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' },
                         ])
                       }
                       className="px-3 py-1.5 text-xs rounded-lg bg-emerald-50 text-emerald-700 font-medium hover:bg-emerald-100 cursor-pointer"
@@ -1313,7 +1318,7 @@ export default function ProductsPage() {
 
                   <div className="space-y-2">
                     {productQtyRows.map((row, index) => (
-                      <div key={index} className="grid grid-cols-4 gap-3 items-end">
+                      <div key={index} className="grid grid-cols-5 gap-3 items-end">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
                             Qty
@@ -1354,6 +1359,27 @@ export default function ProductsPage() {
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Harga Minimum
+                          </label>
+                          <input
+                            type="number"
+                            value={row.harga_minimum}
+                            onChange={(e) => {
+                              const next = [...productQtyRows];
+                              next[index] = {
+                                ...next[index],
+                                harga_minimum: e.target.value,
+                              };
+                              setProductQtyRows(next);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
                             Operator
                           </label>
                           <select
@@ -1379,7 +1405,7 @@ export default function ProductsPage() {
                             onClick={() => {
                               if (productQtyRows.length === 1) {
                                 setProductQtyRows([
-                                  { qty: '', harga_jual: '', operator: 'equals' },
+                                  { qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' },
                                 ]);
                               } else {
                                 setProductQtyRows(

@@ -24,6 +24,44 @@ export interface TutupKasirData {
   waktu_tutup: string;
 }
 
+// Model data bukakas dari API bukakas/{id}
+export interface BukakasData {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  stall_id: number;
+  user_id: number;
+  waktu_buka: string;
+  saldo_kas: number;
+  modal_awal: number;
+  tunai: number;
+  non_tunai: number;
+  total_transaksi: number;
+  total_penjualan: number;
+  catatan: string;
+  status: string;
+  user: {
+    id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    nama: string;
+    notelp: string;
+    kode: string;
+    level: string;
+    status: boolean;
+    token_devices: string;
+    stall_id: number;
+    last_login: string;
+  };
+}
+
+export interface BukakasResponse {
+  success: boolean;
+  message: string;
+  data: BukakasData;
+}
+
 /** Ambil user_id yang login dari localStorage.currentUser */
 export function getLoggedInUserId(): number | null {
   if (typeof window === 'undefined') return null;
@@ -96,6 +134,7 @@ export async function shouldShowBukaKasir(): Promise<{
     const json = await res.json().catch(() => ({} as any));
     const success = json.success === true;
     const bukakasData = json.data;
+    const message: string = json.message || '';
 
     // Cek apakah benar-benar ada bukakas aktif
     const hasBukakasId = !!(bukakasData?.id || bukakasData?.bukakas_id || bukakasData?.bukakasId);
@@ -107,6 +146,30 @@ export async function shouldShowBukaKasir(): Promise<{
       hasId: hasBukakasId,
       status: res.status 
     });
+
+    // Jika server bilang tidak ada bukakas aktif secara eksplisit,
+    // dan pesannya "No active bukakas found", coba otomatis buka kasir
+    if (!success && message === 'No active bukakas found') {
+      console.log(
+        'Tidak ada bukakas aktif, mencoba otomatis buka kasir dengan saldo awal 0'
+      );
+
+      try {
+        const saldoAwal = getStatusUangBukakasir() || 0;
+        await bukaKasirApi({
+          saldoAwal,
+          catatan: '',
+          permanen: false,
+        });
+
+        // Setelah buka kasir berhasil, anggap tidak perlu buka/tutup lagi sekarang
+        // (bukakasId dan status lokal sudah di-set di bukaKasirApi -> markOpened)
+        return { needOpen: false, needClose: false };
+      } catch (e) {
+        console.error('Gagal otomatis buka kasir:', e);
+        // Kalau gagal otomatis buka kasir, lanjut ke flow lama (needOpen: true)
+      }
+    }
 
     // Jika ada bukakas aktif di server (harus success DAN ada data DAN ada id)
     if (success && bukakasData && hasBukakasId) {
@@ -297,6 +360,10 @@ export async function fetchTutupKasirData(): Promise<TutupKasirData | null> {
 
   const bukakasId = getBukakasId();
   const payload: Record<string, unknown> = {};
+  const userId = getLoggedInUserId();
+  if (userId) {
+    payload.user_id = userId;
+  }
   if (bukakasId) {
     payload.bukakas_id = bukakasId;
   }
@@ -320,6 +387,31 @@ export async function fetchTutupKasirData(): Promise<TutupKasirData | null> {
   }
 
   return json.data as TutupKasirData;
+}
+
+/** Ambil data bukakas dari API bukakas/{id} */
+export async function fetchBukakasData(id: number): Promise<BukakasData> {
+  const jwtPin =
+    typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
+  if (!jwtPin) throw new Error('JWT PIN tidak ditemukan');
+
+  const res = await fetch(`${API_BASE_URL}/bukakas/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${jwtPin}`,
+    },
+  });
+
+  const json = await res.json().catch(() => ({} as any));
+  if (!res.ok || json.success === false || !json.data) {
+    const message =
+      json.message ||
+      `Gagal mengambil data bukakas (status: ${res.status})`;
+    throw new Error(message);
+  }
+
+  return json.data as BukakasData;
 }
 
 

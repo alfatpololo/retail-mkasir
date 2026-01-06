@@ -202,13 +202,6 @@ export default function RestockPage() {
                 : `${totalData} baris pembelian stok`}
             </p>
           </div>
-          <button
-            type="button"
-            className="px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors cursor-pointer flex items-center gap-2 shadow-sm"
-          >
-            <span className="ri-add-line w-5 h-5 flex items-center justify-center" />
-            Tambah Pembelian
-          </button>
         </div>
 
         {/* Statistik Cards */}
