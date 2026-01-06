@@ -194,13 +194,13 @@ export default function PaymentSummaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-0 2xl:pl-64 pb-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Ringkasan Pembayaran
             </h1>
             <p className="text-gray-600 text-sm">
@@ -209,58 +209,58 @@ export default function PaymentSummaryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <span className="ri-shopping-bag-3-line text-blue-600 text-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-shopping-bag-3-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Transaksi</p>
-              <p className="text-xl font-bold text-gray-900">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Transaksi</p>
+              <p className="text-2xl font-bold text-gray-900">
                 {totalTransaksi}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <span className="ri-wallet-3-line text-emerald-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-wallet-3-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Pembayaran</p>
-              <p className="text-xl font-bold text-emerald-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Pembayaran</p>
+              <p className="text-2xl font-bold text-emerald-600">
                 {formatCurrency(totalPembayaran)}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
-              <span className="ri-percent-line text-rose-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-percent-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Biaya</p>
-              <p className="text-xl font-bold text-rose-600">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Biaya</p>
+              <p className="text-2xl font-bold text-rose-600">
                 {formatCurrency(totalBiaya)}
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center">
-              <span className="ri-safe-2-line text-violet-600 text-xl" />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-safe-2-line text-white text-xl" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Penerimaan Bersih</p>
-              <p className="text-xl font-bold text-violet-700">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Penerimaan Bersih</p>
+              <p className="text-2xl font-bold text-violet-600">
                 {formatCurrency(penerimaanBersih)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 mb-6">
-          <div className="p-5 border-b border-gray-100">
+        <div className="bg-white rounded-2xl border border-gray-200/50 mb-6 shadow-sm">
+          <div className="p-5 border-b border-gray-200 bg-gray-50/50">
             <h2 className="text-sm font-semibold text-gray-900 mb-1">
               Distribusi Metode Pembayaran
             </h2>
@@ -268,7 +268,7 @@ export default function PaymentSummaryPage() {
               Perbandingan nilai pembayaran per metode.
             </p>
           </div>
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-4 bg-white">
             {(['Tunai', 'Transfer Bank', 'E-Wallet'] as const).map((metode) => {
               const value = byMethod[metode];
               const percentage =
@@ -301,15 +301,15 @@ export default function PaymentSummaryPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-4 flex flex-col md:flex-row gap-3 md:items-center border-b border-gray-200">
-            <div className="flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm">
+          <div className="p-4 flex flex-col md:flex-row gap-3 md:items-center border-b border-gray-200 bg-gray-50/50">
+            <div className="flex items-center gap-2 w-full md:w-auto">
               <select
                 value={metodeFilter}
                 onChange={(e) =>
                   setMetodeFilter(e.target.value as PaymentMethod)
                 }
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               >
                 <option value="Semua">Semua Metode</option>
                 <option value="Tunai">Tunai</option>
@@ -323,14 +323,14 @@ export default function PaymentSummaryPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
-              <span className="text-xs text-gray-400">-</span>
+              <span className="text-sm text-gray-400">-</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
             </div>
 
@@ -339,17 +339,17 @@ export default function PaymentSummaryPage() {
                 type="button"
                 onClick={handleApplyFilter}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 text-xs font-medium text-white hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-emerald-500 text-sm font-medium text-white hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <span className="ri-filter-3-line text-sm" />
+                <span className="ri-filter-3-line text-base" />
                 Terapkan
               </button>
               <button
                 type="button"
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer bg-white transition-colors"
               >
-                <span className="ri-download-2-line text-sm" />
+                <span className="ri-download-2-line text-base" />
                 Export
               </button>
             </div>
@@ -357,29 +357,29 @@ export default function PaymentSummaryPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-y border-gray-200">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Tanggal
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Metode Pembayaran
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Jumlah Transaksi
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Total Pembayaran
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Biaya Admin
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Penerimaan Bersih
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {error && (
                   <tr>
                     <td
@@ -414,39 +414,40 @@ export default function PaymentSummaryPage() {
                   const bersih = row.totalPembayaran - row.biayaAdmin;
                   const chipClass =
                     row.metode === 'Tunai'
-                      ? 'bg-emerald-50 text-emerald-700'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                       : row.metode === 'Transfer Bank'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'bg-violet-50 text-violet-700';
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                      : 'bg-violet-100 text-violet-800 border border-violet-200';
 
                   return (
-                    <tr key={`${row.tanggal}-${index}`} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                    <tr key={`${row.tanggal}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
                         {new Date(row.tanggal).toLocaleDateString('id-ID', {
                           day: '2-digit',
                           month: '2-digit',
                           year: 'numeric',
                         })}
                       </td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap">
                         <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${chipClass}`}
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${chipClass}`}
                         >
                           {row.metode}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                        {row.jumlahTransaksi} transaksi
+                      <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
+                        <span className="font-medium">{row.jumlahTransaksi}</span>
+                        <span className="text-gray-500 ml-1">transaksi</span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">
                         {formatCurrency(row.totalPembayaran)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-rose-600 whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm text-rose-600 whitespace-nowrap font-medium">
                         {row.biayaAdmin === 0
                           ? 'Rp 0'
                           : `-${formatCurrency(row.biayaAdmin)}`}
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-emerald-700 whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm font-semibold text-emerald-700 whitespace-nowrap">
                         {formatCurrency(bersih)}
                       </td>
                     </tr>

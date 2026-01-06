@@ -215,13 +215,13 @@ export default function KelolaStokPage() {
   }, [items, selectedJumlahStok, selectedKolom]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Kelola Stok
           </h1>
           <p className="text-gray-600 text-sm">
@@ -230,41 +230,66 @@ export default function KelolaStokPage() {
         </div>
 
         {/* Ringkasan */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 flex flex-col justify-between">
-            <div className="text-xs text-gray-500 mb-1">Total Produk</div>
-            <div className="text-lg md:text-xl font-bold text-emerald-600">
-              {formatNumber(summary.totalProduk)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-box-3-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Total Produk</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {formatNumber(summary.totalProduk)}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 flex flex-col justify-between">
-            <div className="text-xs text-gray-500 mb-1">Stok Awal</div>
-            <div className="text-lg md:text-xl font-bold text-blue-600">
-              {formatNumber(summary.stokAwal)}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-arrow-left-circle-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Stok Awal</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {formatNumber(summary.stokAwal)}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 flex flex-col justify-between">
-            <div className="text-xs text-gray-500 mb-1">Stok Masuk</div>
-            <div className="text-lg md:text-xl font-bold text-emerald-600">
-              {formatNumber(summary.stokMasuk)}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-arrow-down-circle-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Stok Masuk</p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {formatNumber(summary.stokMasuk)}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 flex flex-col justify-between">
-            <div className="text-xs text-gray-500 mb-1">Terjual</div>
-            <div className="text-lg md:text-xl font-bold text-orange-500">
-              {formatNumber(summary.terjual)}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-shopping-cart-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Terjual</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {formatNumber(summary.terjual)}
+              </p>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 flex flex-col justify-between">
-            <div className="text-xs text-gray-500 mb-1">Stok Akhir</div>
-            <div className="text-lg md:text-xl font-bold text-lime-600">
-              {formatNumber(summary.stokAkhir)}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 rounded-xl bg-lime-500 flex items-center justify-center shadow-md flex-shrink-0">
+              <span className="ri-arrow-right-circle-line text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-1">Stok Akhir</p>
+              <p className="text-2xl font-bold text-lime-600">
+                {formatNumber(summary.stokAkhir)}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Filter & Search */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5 mb-6 space-y-3">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm p-4 md:p-5 mb-6 space-y-3">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 relative">
               <span className="ri-search-line w-5 h-5 flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></span>
@@ -355,7 +380,7 @@ export default function KelolaStokPage() {
         )}
 
         {/* Tabel / List */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm overflow-hidden">
           {loading && (
             <div className="px-6 py-8 text-center text-gray-500 text-sm">
               Memuat data kelola stok...
@@ -429,57 +454,57 @@ export default function KelolaStokPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         SKU
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Nama
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Jenis
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Awal
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Masuk
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Terjual
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Akhir
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                         Satuan
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {filteredItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 text-sm text-gray-700">
+                      <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                           {item.sku}
                         </td>
-                        <td className="px-6 py-3 text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                           {item.nama}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-700">
+                        <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                           {item.jenis}
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-semibold text-blue-600">
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-blue-600 whitespace-nowrap">
                           {formatNumber(item.stokAwal)}
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-semibold text-emerald-600">
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-emerald-600 whitespace-nowrap">
                           {formatNumber(item.stokMasuk)}
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-semibold text-orange-500">
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-orange-600 whitespace-nowrap">
                           {formatNumber(item.terjual)}
                         </td>
-                        <td className="px-6 py-3 text-sm text-right font-semibold text-lime-600">
+                        <td className="px-6 py-4 text-sm text-right font-semibold text-lime-600 whitespace-nowrap">
                           {formatNumber(item.stokAkhir)}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-700">
+                        <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                           {item.satuan}
                         </td>
                       </tr>
@@ -491,17 +516,16 @@ export default function KelolaStokPage() {
           )}
 
           {/* Pagination */}
-          <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between text-sm">
+          <div className="border-t border-gray-200 px-4 py-4 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
             <p className="text-gray-600">
-              Menampilkan {filteredItems.length} dari {totalItems} data (halaman{' '}
-              {page} dari {totalPages})
+              Menampilkan <span className="font-semibold">{filteredItems.length}</span> dari <span className="font-semibold">{totalItems}</span> data (halaman <span className="font-semibold">{page}</span> dari <span className="font-semibold">{totalPages}</span>)
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page === 1 || loading}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white transition-colors"
               >
                 Sebelumnya
               </button>
@@ -511,7 +535,7 @@ export default function KelolaStokPage() {
                   setPage((prev) => Math.min(totalPages, prev + 1))
                 }
                 disabled={page === totalPages || loading}
-                className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-medium hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Berikutnya
               </button>
@@ -522,5 +546,8 @@ export default function KelolaStokPage() {
     </div>
   );
 }
+
+
+
 
 

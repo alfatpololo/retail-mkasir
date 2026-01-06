@@ -97,7 +97,19 @@ export async function shouldShowBukaKasir(): Promise<{
     const success = json.success === true;
     const bukakasData = json.data;
 
-    if (success && bukakasData) {
+    // Cek apakah benar-benar ada bukakas aktif
+    const hasBukakasId = !!(bukakasData?.id || bukakasData?.bukakas_id || bukakasData?.bukakasId);
+    
+    console.log('bukakas/current response:', { 
+      success, 
+      hasData: !!bukakasData, 
+      bukakasData,
+      hasId: hasBukakasId,
+      status: res.status 
+    });
+
+    // Jika ada bukakas aktif di server (harus success DAN ada data DAN ada id)
+    if (success && bukakasData && hasBukakasId) {
       const bukakasId =
         bukakasData.id ?? bukakasData.bukakas_id ?? bukakasData.bukakasId;
       if (bukakasId) {
@@ -130,38 +142,59 @@ export async function shouldShowBukaKasir(): Promise<{
       return { needOpen: false, needClose: false };
     }
 
-    // Tidak ada bukakas aktif - clear semua data lokal kasir
+    // Tidak ada bukakas aktif di server (success: false ATAU data: null ATAU tidak ada id)
+    // Clear semua data lokal kasir untuk memastikan tidak ada data lama
+    console.log('Tidak ada bukakas aktif di server:', {
+      success,
+      hasData: !!bukakasData,
+      hasId: hasBukakasId,
+      reason: !success ? 'success: false' : !bukakasData ? 'data: null' : 'tidak ada id'
+    });
+    console.log('Clearing semua data lokal kasir');
+    
     if (typeof window !== 'undefined') {
       localStorage.setItem(KEY_IS_OPEN, 'false');
       localStorage.removeItem(KEY_BUKAKAS_ID);
       localStorage.removeItem(KEY_LAST_OPEN_DATE);
+      localStorage.removeItem(KEY_LAST_OPEN_SALDO);
     }
-    return { needOpen: true, needClose: false };
-  } catch {
-    // Fallback ke lokal - hanya jika API error
+    
+    const result = { needOpen: true, needClose: false };
+    console.log('Return result:', result);
+    return result;
+  } catch (error) {
+    // Fallback ke lokal - hanya jika API error (network error, dll)
+    // Tapi jika error karena tidak ada bukakas, jangan pakai data lokal
+    console.error('Error checking bukakas/current:', error);
+    console.log('Masuk ke catch block, cek data lokal');
+    
     if (typeof window === 'undefined') {
       return { needOpen: true, needClose: false };
     }
-    const isOpen = localStorage.getItem(KEY_IS_OPEN) === 'true';
-    const lastOpenStr = localStorage.getItem(KEY_LAST_OPEN_DATE);
     
-    // Jika data lokal menunjukkan kasir tidak terbuka, berarti perlu buka kasir baru
-    if (!isOpen || !lastOpenStr) {
+    // Jika API error, cek dulu apakah ada bukakas_id di localStorage
+    // Jika tidak ada bukakas_id, berarti memang tidak ada bukakas aktif
+    const bukakasId = localStorage.getItem(KEY_BUKAKAS_ID);
+    console.log('bukakasId dari localStorage:', bukakasId);
+    
+    if (!bukakasId) {
+      // Tidak ada bukakas_id, berarti tidak ada bukakas aktif
+      console.log('Tidak ada bukakas_id di localStorage, clear semua dan return needOpen: true');
+      localStorage.setItem(KEY_IS_OPEN, 'false');
+      localStorage.removeItem(KEY_LAST_OPEN_DATE);
+      localStorage.removeItem(KEY_LAST_OPEN_SALDO);
       return { needOpen: true, needClose: false };
     }
-
-    // Jika data lokal menunjukkan kasir terbuka, cek apakah sudah lewat hari
-    const last = new Date(lastOpenStr);
-    const today = new Date();
-    last.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-
-    if (last < today) {
-      return { needOpen: true, needClose: true };
-    }
-
-    // Kasir masih aktif di hari yang sama
-    return { needOpen: false, needClose: false };
+    
+    // Jika ada bukakas_id di lokal tapi API error, cek data lokal
+    // TAPI: karena API error, kita tidak bisa verifikasi apakah bukakas_id masih valid
+    // Untuk aman, anggap tidak ada bukakas aktif dan clear data lokal
+    console.log('Ada bukakas_id di localStorage tapi API error, clear data lokal untuk aman');
+    localStorage.setItem(KEY_IS_OPEN, 'false');
+    localStorage.removeItem(KEY_BUKAKAS_ID);
+    localStorage.removeItem(KEY_LAST_OPEN_DATE);
+    localStorage.removeItem(KEY_LAST_OPEN_SALDO);
+    return { needOpen: true, needClose: false };
   }
 }
 

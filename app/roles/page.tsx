@@ -68,86 +68,86 @@ export default function RolesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pl-0 2xl:pl-64">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pl-0 lg:pl-64 pb-10">
       <Sidebar />
       
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Roles & Permissions</h1>
-            <p className="text-gray-600">Manage user roles and access permissions</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Roles & Permissions</h1>
+            <p className="text-gray-600 text-sm">Manage user roles and access permissions</p>
           </div>
           <button
             onClick={() => {
               setEditingRole(null);
               setShowModal(true);
             }}
-            className="px-5 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-2"
+            className="px-4 py-2.5 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-2 shadow-sm"
           >
             <span className="ri-add-line w-5 h-5 flex items-center justify-center"></span>
             Add Role
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-200/50 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role Name</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Input Product</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">View Reports</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Void Transaction</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Open/Close Cashier</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Printer Settings</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role Name</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Input Product</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">View Reports</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Void Transaction</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Open/Close Cashier</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Printer Settings</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {roles.map((role) => (
-                  <tr key={role.id} className="hover:bg-gray-50">
+                  <tr key={role.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-gray-900">{role.name}</span>
+                      <span className="text-sm font-semibold text-gray-900">{role.name}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       {role.permissions.inputProduct ? (
-                        <span className="ri-checkbox-circle-fill w-5 h-5 flex items-center justify-center text-green-500 mx-auto"></span>
+                        <span className="ri-checkbox-circle-fill w-6 h-6 flex items-center justify-center text-emerald-500 mx-auto"></span>
                       ) : (
-                        <span className="ri-close-circle-fill w-5 h-5 flex items-center justify-center text-gray-300 mx-auto"></span>
+                        <span className="ri-close-circle-fill w-6 h-6 flex items-center justify-center text-gray-300 mx-auto"></span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {role.permissions.viewReports ? (
-                        <span className="ri-checkbox-circle-fill w-5 h-5 flex items-center justify-center text-green-500 mx-auto"></span>
+                        <span className="ri-checkbox-circle-fill w-6 h-6 flex items-center justify-center text-emerald-500 mx-auto"></span>
                       ) : (
-                        <span className="ri-close-circle-fill w-5 h-5 flex items-center justify-center text-gray-300 mx-auto"></span>
+                        <span className="ri-close-circle-fill w-6 h-6 flex items-center justify-center text-gray-300 mx-auto"></span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {role.permissions.voidTransaction ? (
-                        <span className="ri-checkbox-circle-fill w-5 h-5 flex items-center justify-center text-green-500 mx-auto"></span>
+                        <span className="ri-checkbox-circle-fill w-6 h-6 flex items-center justify-center text-emerald-500 mx-auto"></span>
                       ) : (
-                        <span className="ri-close-circle-fill w-5 h-5 flex items-center justify-center text-gray-300 mx-auto"></span>
+                        <span className="ri-close-circle-fill w-6 h-6 flex items-center justify-center text-gray-300 mx-auto"></span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {role.permissions.openCloseCashier ? (
-                        <span className="ri-checkbox-circle-fill w-5 h-5 flex items-center justify-center text-green-500 mx-auto"></span>
+                        <span className="ri-checkbox-circle-fill w-6 h-6 flex items-center justify-center text-emerald-500 mx-auto"></span>
                       ) : (
-                        <span className="ri-close-circle-fill w-5 h-5 flex items-center justify-center text-gray-300 mx-auto"></span>
+                        <span className="ri-close-circle-fill w-6 h-6 flex items-center justify-center text-gray-300 mx-auto"></span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       {role.permissions.printerSettings ? (
-                        <span className="ri-checkbox-circle-fill w-5 h-5 flex items-center justify-center text-green-500 mx-auto"></span>
+                        <span className="ri-checkbox-circle-fill w-6 h-6 flex items-center justify-center text-emerald-500 mx-auto"></span>
                       ) : (
-                        <span className="ri-close-circle-fill w-5 h-5 flex items-center justify-center text-gray-300 mx-auto"></span>
+                        <span className="ri-close-circle-fill w-6 h-6 flex items-center justify-center text-gray-300 mx-auto"></span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <button
                         onClick={() => handleEdit(role)}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer whitespace-nowrap"
+                        className="text-sm font-medium text-emerald-600 hover:text-emerald-700 cursor-pointer whitespace-nowrap transition-colors"
                       >
                         Edit
                       </button>
@@ -162,15 +162,15 @@ export default function RolesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
+            <div className="p-6 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-gray-900">
                   {editingRole ? 'Edit Role' : 'Add Role'}
                 </h3>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                 >
                   <span className="ri-close-line w-5 h-5 flex items-center justify-center text-gray-600"></span>
                 </button>
@@ -184,7 +184,7 @@ export default function RolesPage() {
                   type="text"
                   defaultValue={editingRole?.name || ''}
                   placeholder="Enter role name"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 />
               </div>
 
@@ -192,11 +192,11 @@ export default function RolesPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-3">Permissions</label>
                 <div className="space-y-3">
                   {Object.entries(permissionLabels).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-3 cursor-pointer">
+                    <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
                       <input
                         type="checkbox"
                         defaultChecked={editingRole?.permissions[key as keyof typeof editingRole.permissions]}
-                        className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-2 focus:ring-green-500 cursor-pointer"
+                        className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                       />
                       <span className="text-sm text-gray-700">{label}</span>
                     </label>
@@ -213,7 +213,7 @@ export default function RolesPage() {
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 transition-colors cursor-pointer whitespace-nowrap"
+                  className="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap"
                 >
                   {editingRole ? 'Update' : 'Add'}
                 </button>
