@@ -45,6 +45,30 @@
   .bg-green-100 {
     background-color: var(--primary-color-soft) !important;
   }
+  .bg-emerald-600,
+  .bg-green-600 {
+    background-color: var(--primary-color-dark) !important;
+  }
+  .bg-emerald-700,
+  .bg-green-700 {
+    background-color: var(--primary-color-dark) !important;
+  }
+
+  /* Gradients - override Tailwind gradient classes to use theme variables */
+  /* Match elements that have bg-gradient AND from-emerald/green classes */
+  [class*="bg-gradient"][class*="from-emerald-500"],
+  [class*="bg-gradient"][class*="from-green-500"] {
+    background-image: var(--primary-gradient) !important;
+  }
+  [class*="bg-gradient"][class*="from-emerald-50"][class*="to-emerald-100"],
+  [class*="bg-gradient"][class*="from-green-50"][class*="to-green-100"] {
+    background: linear-gradient(135deg, var(--primary-color-light) 0%, var(--primary-color-soft) 100%) !important;
+  }
+  /* Hover states for gradients */
+  [class*="hover:from-emerald-600"]:hover,
+  [class*="hover:from-green-600"]:hover {
+    background-image: var(--primary-gradient) !important;
+  }
 
   /* Light gradient for navbar backgrounds */
   .bg-emerald-gradient-light {
@@ -63,8 +87,13 @@
 
   /* Borders */
   .border-emerald-500,
-  .border-green-500 {
+  .border-green-500,
+  .border-emerald-200,
+  .border-green-200 {
     border-color: var(--primary-color) !important;
+  }
+  .border-emerald-200\/50 {
+    border-color: var(--primary-color-soft) !important;
   }
 
   /* Rings */
