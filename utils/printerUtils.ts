@@ -1,8 +1,41 @@
 // Utility functions untuk print ESC/POS
 
 // Type untuk USB Device (WebUSB API)
-// Menggunakan any karena WebUSB API belum ada di TypeScript standard library
-export type USBDevice = any;
+export type USBDevice = {
+  opened: boolean;
+  vendorId: number;
+  productId: number;
+  serialNumber?: string;
+  manufacturerName?: string;
+  productName?: string;
+  configuration?: {
+    interfaces: Array<{
+      interfaceNumber: number;
+      alternate: {
+        endpoints: Array<{
+          endpointNumber: number;
+          direction: 'in' | 'out';
+          type: 'bulk' | 'interrupt' | 'isochronous' | 'control';
+        }>;
+      };
+      alternates?: Array<{
+        endpoints: Array<{
+          endpointNumber: number;
+          direction: 'in' | 'out';
+          type: 'bulk' | 'interrupt' | 'isochronous' | 'control';
+        }>;
+      }>;
+      claimed: boolean;
+    }>;
+  };
+  open(): Promise<void>;
+  close(): Promise<void>;
+  selectConfiguration(configurationValue: number): Promise<void>;
+  claimInterface(interfaceNumber: number): Promise<void>;
+  releaseInterface(interfaceNumber: number): Promise<void>;
+  transferOut(endpointNumber: number, data: ArrayBuffer | ArrayBufferView): Promise<{ status: 'ok' | 'stall' | 'babble'; bytesWritten: number }>;
+  transferIn(endpointNumber: number, length: number): Promise<{ status: 'ok' | 'stall' | 'babble'; data?: DataView }>;
+};
 
 export interface ReceiptData {
   storeName: string;
@@ -260,10 +293,10 @@ export function generateReceiptESC_POS(data: ReceiptData): Uint8Array {
 // Fungsi untuk reconnect USB device jika sudah pernah di-connect
 export async function reconnectUSBDevice(): Promise<USBDevice | null> {
   try {
-    const hasWebUSB = typeof (navigator as any).usb !== 'undefined';
+    const hasWebUSB = typeof navigator.usb !== 'undefined';
     if (!hasWebUSB) return null;
 
-    const devices = await (navigator as any).usb.getDevices();
+    const devices = await navigator.usb!.getDevices();
     if (!devices || devices.length === 0) return null;
 
     const device = devices[0];
@@ -310,8 +343,9 @@ export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Pro
       await device.open();
       await device.selectConfiguration(1);
       await device.claimInterface(0);
-    } catch (error: any) {
-      throw new Error(`Gagal membuka koneksi ke printer: ${error?.message || error}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Gagal membuka koneksi ke printer: ${errorMessage}`);
     }
   }
 
@@ -332,7 +366,7 @@ export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Pro
           }
         }
 
-        for (const alt of iface.alternates) {
+        for (const alt of iface.alternates || []) {
           for (const endpoint of alt.endpoints) {
             if (endpoint.direction === 'out' && endpoint.type === 'bulk') {
               endpointNumber = endpoint.endpointNumber;
@@ -371,10 +405,26 @@ export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Pro
   }
 }
 
+// Type untuk Bluetooth Device
+export type BluetoothDevice = {
+  id: string;
+  name?: string;
+  gatt?: {
+    device: BluetoothDevice;
+    connected: boolean;
+    connect(): Promise<any>;
+    disconnect(): void;
+    getPrimaryService(service: string | number): Promise<any>;
+  };
+  watchAdvertisements(): Promise<void>;
+  unwatchAdvertisements(): void;
+  addEventListener(type: 'advertisementreceived', listener: (event: any) => void): void;
+};
+
 // Fungsi untuk reconnect Bluetooth device jika sudah pernah di-connect
-export async function reconnectBluetoothDevice(): Promise<any | null> {
+export async function reconnectBluetoothDevice(): Promise<BluetoothDevice | null> {
   try {
-    const hasBluetooth = typeof (navigator as any).bluetooth !== 'undefined';
+    const hasBluetooth = typeof navigator.bluetooth !== 'undefined';
     if (!hasBluetooth) return null;
 
     // Web Bluetooth API tidak memiliki getDevices() seperti WebUSB
@@ -388,14 +438,17 @@ export async function reconnectBluetoothDevice(): Promise<any | null> {
 }
 
 // Fungsi untuk mengirim data ke printer Bluetooth
-export async function sendToBluetoothPrinter(device: any, data: Uint8Array): Promise<void> {
+export async function sendToBluetoothPrinter(device: BluetoothDevice, data: Uint8Array): Promise<void> {
   if (!device || typeof device !== 'object') {
     throw new Error('Device Bluetooth tidak tersedia. Pastikan printer sudah terhubung.');
   }
 
   try {
     // Connect ke GATT server jika belum
-    if (!device.gatt || !device.gatt.connected) {
+    if (!device.gatt) {
+      throw new Error('Bluetooth device tidak memiliki GATT server');
+    }
+    if (!device.gatt.connected) {
       const server = await device.gatt.connect();
       
       // Cari service Serial Port Profile (SPP) - UUID standar untuk printer Bluetooth
@@ -412,21 +465,28 @@ export async function sendToBluetoothPrinter(device: any, data: Uint8Array): Pro
       const characteristic = await service.getCharacteristic('00001101-0000-1000-8000-00805f9b34fb');
       await characteristic.writeValue(data);
     }
-  } catch (error: any) {
-    throw new Error(`Gagal mengirim data ke printer Bluetooth: ${error?.message || error}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Gagal mengirim data ke printer Bluetooth: ${errorMessage}`);
   }
 }
 
 // Fungsi universal untuk print ke printer (USB, Bluetooth, atau System)
 export async function printToPrinter(
   connectionType: 'usb' | 'bluetooth' | 'system',
-  device: any,
+  device: USBDevice | BluetoothDevice | null,
   data: Uint8Array
 ): Promise<void> {
   if (connectionType === 'usb') {
-    await sendToUSBPrinter(device, data);
+    if (!device) {
+      throw new Error('USB device tidak tersedia');
+    }
+    await sendToUSBPrinter(device as USBDevice, data);
   } else if (connectionType === 'bluetooth') {
-    await sendToBluetoothPrinter(device, data);
+    if (!device) {
+      throw new Error('Bluetooth device tidak tersedia');
+    }
+    await sendToBluetoothPrinter(device as BluetoothDevice, data);
   } else {
     // System print - tidak perlu kirim data, akan menggunakan window.print()
     throw new Error('System print harus menggunakan window.print()');

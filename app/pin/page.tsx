@@ -46,11 +46,11 @@ export default function PinPage() {
       } else {
         setError(response.message || 'Gagal mengambil data kasir');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching cashiers:', error);
 
       // Jika error berkaitan dengan JWT / otentikasi, langsung logout & redirect
-      const message = error.message || '';
+      const message = error instanceof Error ? error.message : '';
       if (
         message.toLowerCase().includes('jwt') ||
         message.toLowerCase().includes('unauthenticated') ||
@@ -174,9 +174,9 @@ export default function PinPage() {
         setPin('');
         setIsLoading(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('PIN verification error:', error);
-      const message = error.message || '';
+      const message = error instanceof Error ? error.message : '';
 
       // Jika error berkaitan dengan JWT / otentikasi, langsung logout & redirect
       if (

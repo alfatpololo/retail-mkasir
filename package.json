@@ -25,7 +25,8 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
+    "dev": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000 --turbo",
+    "dev:webpack": "cross-env NODE_ENV=development next dev -H 0.0.0.0 -p 3000",
     "lint": "next lint",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

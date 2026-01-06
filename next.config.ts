@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   typescript: {
-    // ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

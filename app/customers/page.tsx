@@ -662,7 +662,7 @@ export default function CustomersPage() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                    {customer.transactionCount} transaksi
+                    {customer.totalTransactions} transaksi
                   </span>
                   <span className="text-sm font-bold text-emerald-600">{customer.totalSpending}</span>
                 </div>
@@ -775,7 +775,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                        {customer.transactionCount} transaksi
+                        {customer.totalTransactions} transaksi
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

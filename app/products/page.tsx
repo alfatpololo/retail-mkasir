@@ -92,6 +92,7 @@ interface Product {
      harga_minimum?: number;
      operator: string;
    }[];
+   imageFile?: File;
 }
 
 export default function ProductsPage() {
@@ -339,8 +340,7 @@ export default function ProductsPage() {
         }
 
         // Gunakan BarcodeDetector jika tersedia di browser
-        // @ts-ignore
-        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        const BarcodeDetectorCtor = window.BarcodeDetector;
         if (!BarcodeDetectorCtor) {
           setScannerError(
             'Browser tidak mendukung BarcodeDetector. Scanner hanya bisa dipakai dengan scanner fisik (alat scan yang mengetikkan kode ke input).'
@@ -349,7 +349,6 @@ export default function ProductsPage() {
           return;
         }
 
-        // @ts-ignore
         const detector = new BarcodeDetectorCtor({
           formats: ['code_128', 'ean_13', 'ean_8', 'upc_a'],
         });
@@ -373,7 +372,7 @@ export default function ProductsPage() {
           try {
             const barcodes = await detector.detect(canvas);
             if (barcodes.length > 0) {
-              const code = (barcodes[0] as any).rawValue || (barcodes[0] as any).value || '';
+              const code = barcodes[0].rawValue || barcodes[0].value || '';
               if (code) {
                 setNewProduct((prev) => ({
                   ...prev,
@@ -449,7 +448,29 @@ export default function ProductsPage() {
     }
   };
 
-  const handleSaveProduct = async (updatedProduct: any) => {
+  const handleSaveProduct = async (updatedProduct: {
+    id: string | number;
+    sku: string;
+    name: string;
+    category: string;
+    costPrice: number;
+    sellPrice: number;
+    stock: number;
+    unit: string;
+    image: string;
+    productCategoryId?: number;
+    stokMinimum?: number;
+    deskripsi?: string;
+    tampil?: number;
+    aksesCustom?: boolean;
+    productQtyJson?: {
+      qty: number;
+      harga_jual: number;
+      harga_minimum?: number;
+      operator: string;
+    }[];
+    imageFile?: File | null;
+  }) => {
     try {
       setIsSubmitting(true);
       const jwtPin =
@@ -481,7 +502,7 @@ export default function ProductsPage() {
             0
         ),
         harga: Number(updatedProduct.sellPrice),
-        harga_modal: Number(updatedProduct.costPrice ?? 0),
+        harga_modal: Number(updatedProduct.costPrice),
         stok_minimum: Number(updatedProduct.stokMinimum ?? 0),
         deskripsi: updatedProduct.deskripsi ?? '',
         tampil: Number(updatedProduct.tampil ?? 1),

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { reconnectUSBDevice, reconnectBluetoothDevice, USBDevice } from '@/utils/printerUtils';
+import { reconnectUSBDevice, reconnectBluetoothDevice, USBDevice, BluetoothDevice } from '@/utils/printerUtils';
 
 export type PrinterConnectionType = 'usb' | 'bluetooth' | 'system';
 
@@ -11,14 +11,14 @@ export interface PrinterConnectionState {
   deviceName?: string;
   lastUpdated?: string;
   usbDevice?: USBDevice; // Referensi USB device untuk print langsung
-  bluetoothDevice?: any; // Referensi Bluetooth device untuk print langsung
+  bluetoothDevice?: BluetoothDevice; // Referensi Bluetooth device untuk print langsung
 }
 
 interface PrinterContextValue extends PrinterConnectionState {
   setConnection: (state: PrinterConnectionState) => void;
   clearConnection: () => void;
   setUsbDevice: (device: USBDevice | null) => void;
-  setBluetoothDevice: (device: any) => void;
+  setBluetoothDevice: (device: BluetoothDevice | null) => void;
 }
 
 const DEFAULT_STATE: PrinterConnectionState = {
@@ -122,7 +122,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
-  const setBluetoothDevice = (device: any) => {
+  const setBluetoothDevice = (device: BluetoothDevice | null) => {
     setState((prev) => ({
       ...prev,
       bluetoothDevice: device || undefined,

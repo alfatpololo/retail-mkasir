@@ -14,7 +14,18 @@ export interface TutupKasirData {
   diskon: number;
   nontunai: number;
   pajak: number;
-  produkterjual?: any;
+  produkterjual?: Array<{
+    nama_kategori?: string;
+    produk?: Array<{
+      id?: number | string;
+      nama?: string;
+      nama_kategori?: string;
+      qty?: number;
+      jumlah_terbeli?: number;
+      harga?: number;
+      subtotal?: number;
+    }>;
+  }>;
   saldo_kas: number;
   total: number;
   total_transaksi: number;
@@ -131,7 +142,7 @@ export async function shouldShowBukaKasir(): Promise<{
       },
     });
 
-    const json = await res.json().catch(() => ({} as any));
+    const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: unknown }));
     const success = json.success === true;
     const bukakasData = json.data;
     const message: string = json.message || '';
@@ -288,9 +299,9 @@ export async function bukaKasirApi(params: {
     }),
   });
 
-  const json = await res.json().catch(() => ({} as any));
+  const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: unknown }));
   if (!res.ok || json.success === false) {
-    throw new Error(json.message || 'Gagal buka kasir');
+    throw new Error((json.message as string) || 'Gagal buka kasir');
   }
 
   const bukakasData = json.data || {};
@@ -326,9 +337,9 @@ export async function tutupKasirApi(catatan: string) {
     }),
   });
 
-  const json = await res.json().catch(() => ({} as any));
+  const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: unknown }));
   if (!res.ok || json.success === false) {
-    throw new Error(json.message || 'Gagal tutup kasir');
+    throw new Error((json.message as string) || 'Gagal tutup kasir');
   }
 
   markClosed();
@@ -377,11 +388,11 @@ export async function fetchTutupKasirData(): Promise<TutupKasirData | null> {
     body: JSON.stringify(payload),
   });
 
-  const json = await res.json().catch(() => ({} as any));
+  const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: TutupKasirData }));
   if (!res.ok || json.success === false || !json.data) {
     // Beri informasi lebih detail untuk ditampilkan di UI
     const message =
-      json.message ||
+      (json.message as string) ||
       `Gagal mengambil data ringkasan kasir (status: ${res.status})`;
     throw new Error(message);
   }
@@ -403,10 +414,10 @@ export async function fetchBukakasData(id: number): Promise<BukakasData> {
     },
   });
 
-  const json = await res.json().catch(() => ({} as any));
+  const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: BukakasData }));
   if (!res.ok || json.success === false || !json.data) {
     const message =
-      json.message ||
+      (json.message as string) ||
       `Gagal mengambil data bukakas (status: ${res.status})`;
     throw new Error(message);
   }

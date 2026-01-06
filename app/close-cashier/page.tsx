@@ -410,8 +410,8 @@ export default function CloseCashierPage() {
                           Produk Terjual per Kategori
                         </h3>
                         <div className="space-y-3">
-                          {tutupKasirData.produkterjual.map(
-                            (kategori: any, idx: number) => (
+                          {tutupKasirData.produkterjual?.map(
+                            (kategori, idx: number) => (
                               <div
                                 key={idx}
                                 className="border border-gray-100 rounded-2xl p-4 bg-gray-50"
@@ -429,24 +429,24 @@ export default function CloseCashierPage() {
                                 {Array.isArray(kategori.produk) &&
                                   kategori.produk.length > 0 && (
                                     <div className="divide-y divide-gray-200">
-                                      {kategori.produk.map((p: any) => (
+                                      {kategori.produk.map((p, pIdx) => (
                                         <div
-                                          key={p.id}
+                                          key={p.id ?? pIdx}
                                           className="flex items-center justify-between py-2"
                                         >
                                           <div className="flex flex-col">
                                             <span className="text-sm font-medium text-gray-900">
-                                              {p.nama}
+                                              {p.nama ?? 'Produk'}
                                             </span>
                                             <span className="text-xs text-gray-500">
-                                              {p.nama_kategori}
+                                              {p.nama_kategori ?? kategori.nama_kategori ?? 'Lainnya'}
                                             </span>
                                           </div>
                                           <div className="text-right">
                                             <div className="text-xs text-gray-500">
                                               Qty:{' '}
                                               <span className="font-semibold text-gray-700">
-                                                {p.jumlah_terbeli}
+                                                {p.jumlah_terbeli ?? p.qty ?? 0}
                                               </span>
                                             </div>
                                             <div className="text-sm font-semibold text-gray-900">

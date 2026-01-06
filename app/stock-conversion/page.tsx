@@ -131,16 +131,31 @@ export default function KelolaStokPage() {
       const rawList = Array.isArray(inner?.data) ? inner.data : [];
       const rawSummary = inner?.summary;
 
-      const mappedItems: KelolaStokItem[] = rawList.map((item: any) => ({
+      interface ApiStockConversionItem {
+        product_id?: number;
+        id?: number;
+        sku?: string;
+        nama?: string;
+        jenis?: string;
+        satuan?: string;
+        stok_awal?: number;
+        stok_masuk?: number;
+        terjual?: number;
+        stok_akhir?: number;
+        selisih?: number;
+        nilai_selisih?: number;
+      }
+      
+      const mappedItems: KelolaStokItem[] = rawList.map((item: ApiStockConversionItem) => ({
         id: Number(item.product_id ?? item.id ?? 0),
         sku: String(item.sku ?? ''),
         nama: String(item.nama ?? ''),
         jenis: String(item.jenis ?? ''),
         satuan: String(item.satuan ?? ''),
-        stokAwal: Number(item.stok_awal ?? item.stokAwal ?? 0),
-        stokMasuk: Number(item.stok_masuk ?? item.stokMasuk ?? 0),
+        stokAwal: Number(item.stok_awal ?? 0),
+        stokMasuk: Number(item.stok_masuk ?? 0),
         terjual: Number(item.terjual ?? 0),
-        stokAkhir: Number(item.stok_akhir ?? item.stokAkhir ?? 0),
+        stokAkhir: Number(item.stok_akhir ?? 0),
       }));
 
       setItems(mappedItems);

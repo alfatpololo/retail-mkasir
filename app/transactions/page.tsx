@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
@@ -105,7 +105,7 @@ const formatDate = (date: Date) =>
     year: 'numeric',
   }).format(date);
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -915,5 +915,20 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Memuat halaman...</p>
+        </div>
+      </div>
+    }>
+      <TransactionsPageContent />
+    </Suspense>
   );
 }

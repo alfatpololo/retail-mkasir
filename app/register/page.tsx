@@ -243,14 +243,19 @@ export default function RegisterPage() {
         setError(data.message?.toString() || 'Registrasi gagal');
         setIsLoading(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Register error:', error);
       let message = 'Gagal terhubung ke server';
       
-      if (error.message?.includes('timeout') || error.message?.includes('network')) {
-        message = 'Koneksi ke server timeout. Periksa jaringan Anda.';
-      } else if (error.response) {
-        message = error.response.data?.message?.toString() || 'Terjadi kesalahan server';
+      if (error instanceof Error) {
+        if (error.message?.includes('timeout') || error.message?.includes('network')) {
+          message = 'Koneksi ke server timeout. Periksa jaringan Anda.';
+        } else {
+          message = error.message;
+        }
+      } else if (error && typeof error === 'object' && 'response' in error) {
+        const errorResponse = error as { response?: { data?: { message?: string } } };
+        message = errorResponse.response?.data?.message?.toString() || 'Terjadi kesalahan server';
       }
       
       setError(message);

@@ -13,7 +13,7 @@ edition = "2021"
 tauri-build = { version = "2.1", features = [] }
 
 [dependencies]
-tauri = { version = "2.1", features = ["macos-private-api"] }
+tauri = { version = "2.1", features = [] }
 tauri-plugin-shell = { version = "2.1" }
 tauri-plugin-dialog = { version = "2.1" }
 tauri-plugin-fs = { version = "2.1" }
@@ -25,4 +25,5 @@ tauri-plugin-global-shortcut = { version = "2.1" }
 [features]
 # This feature is used for production builds or when frontendDist points to the filesystem
 custom-protocol = [ "tauri/custom-protocol" ]
+
 

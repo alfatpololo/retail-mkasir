@@ -131,8 +131,7 @@ export default function EditProductModal({
         }
 
         // Gunakan BarcodeDetector jika tersedia di browser
-        // @ts-ignore
-        const BarcodeDetectorCtor = (window as any).BarcodeDetector;
+        const BarcodeDetectorCtor = window.BarcodeDetector;
         if (!BarcodeDetectorCtor) {
           setScannerError(
             'Browser tidak mendukung BarcodeDetector. Gunakan scanner fisik yang mengetikkan kode langsung ke input SKU.'
@@ -141,7 +140,14 @@ export default function EditProductModal({
           return;
         }
 
-        // @ts-ignore
+        if (!BarcodeDetectorCtor) {
+          setScannerError(
+            'Browser tidak mendukung BarcodeDetector. Gunakan scanner fisik yang mengetikkan kode langsung ke input SKU.'
+          );
+          setIsScanning(false);
+          return;
+        }
+        
         const detector = new BarcodeDetectorCtor({
           formats: ['code_128', 'ean_13', 'ean_8', 'upc_a'],
         });
@@ -165,12 +171,7 @@ export default function EditProductModal({
           try {
             const barcodes = await detector.detect(canvas);
             if (barcodes.length > 0) {
-              const code =
-                // @ts-ignore
-                (barcodes[0] as any).rawValue ||
-                // @ts-ignore
-                (barcodes[0] as any).value ||
-                '';
+              const code = barcodes[0].rawValue || barcodes[0].value || '';
               if (code) {
                 setFormData((prev) => ({
                   ...prev,

@@ -396,7 +396,12 @@ export async function createEmployee(
   try {
     const normalizedPhone = normalizePhone(employee.notelp);
 
-    const body: any = {
+    const body: {
+      nama: string;
+      notelp: string;
+      level: string;
+      pin?: string;
+    } = {
       nama: employee.nama,
       notelp: normalizedPhone,
       level: employee.level,
@@ -448,7 +453,13 @@ export async function updateEmployee(
   jwt: string
 ): Promise<Employee> {
   try {
-    const body: any = {};
+    const body: {
+      nama?: string;
+      notelp?: string;
+      level?: string;
+      pin?: string;
+      status?: boolean;
+    } = {};
 
     if (employee.nama !== undefined && employee.nama.length > 0) {
       body.nama = employee.nama;

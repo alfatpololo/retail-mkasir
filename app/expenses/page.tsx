@@ -34,20 +34,8 @@ const DataPengeluaran = () => {
   
   // Notification helpers
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    // Try to use store if available, otherwise use alert
-    try {
-      const { useMainStore } = require('@/utils/stores');
-      const { setNotificationError, setNotificationSuccess } = useMainStore.getState();
-      if (type === 'success' && setNotificationSuccess) {
-        setNotificationSuccess(message);
-      } else if (type === 'error' && setNotificationError) {
-        setNotificationError(message);
-      } else {
-        alert(message);
-      }
-    } catch {
-      alert(message);
-    }
+    // Fallback to alert since stores module doesn't exist
+    alert(message);
   };
 
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -244,13 +232,13 @@ const DataPengeluaran = () => {
       );
       
       if (!response.ok) {
-        const errorData: any = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as { message?: string }));
         throw new Error(
-          errorData?.message || `HTTP error! status: ${response.status}`
+          (errorData as { message?: string })?.message || `HTTP error! status: ${response.status}`
         );
       }
       
-      const json: any = await response.json();
+      const json = await response.json() as { success?: boolean; data?: { data?: Expense[]; total?: number; page?: number; limit?: number; total_pages?: number } | Expense[]; message?: string };
       
       console.log('=== API RESPONSE ===');
       console.log('Full response:', JSON.stringify(json, null, 2));
@@ -266,22 +254,61 @@ const DataPengeluaran = () => {
 
         if (json?.success === true && json?.data) {
           // Standard API response structure
-          responseData = json.data.data || json.data || [];
-          paginationData = {
-            total: json.data.total || 0,
-            page: json.data.page || 1,
-            limit: json.data.limit || 20,
-            total_pages: json.data.total_pages || 1
-          };
+          if (Array.isArray(json.data)) {
+            responseData = json.data;
+            paginationData = {
+              total: json.data.length,
+              page: 1,
+              limit: 20,
+              total_pages: 1
+            };
+          } else {
+            responseData = json.data.data || [];
+            paginationData = {
+              total: json.data.total || 0,
+              page: json.data.page || 1,
+              limit: json.data.limit || 20,
+              total_pages: json.data.total_pages || 1
+            };
+          }
         } else {
           // Fallback for different response structures
-          responseData = json?.data?.data?.data || json?.data?.data || json?.data || [];
-          paginationData = {
-        total: json?.data?.data?.total || json?.data?.total || json?.total || 0,
-        page: json?.data?.data?.page || json?.data?.page || json?.page || 1,
-        limit: json?.data?.data?.limit || json?.data?.limit || json?.limit || 20,
-        total_pages: json?.data?.data?.total_pages || json?.data?.total_pages || json?.total_pages || 1
-      };
+          if (Array.isArray(json?.data)) {
+            responseData = json.data;
+            paginationData = {
+              total: json.data.length,
+              page: 1,
+              limit: 20,
+              total_pages: 1
+            };
+          } else {
+            if (Array.isArray(json?.data)) {
+              responseData = json.data;
+              paginationData = {
+                total: json.data.length,
+                page: 1,
+                limit: 20,
+                total_pages: 1
+              };
+            } else if (json?.data && typeof json.data === 'object' && 'data' in json.data) {
+              const dataObj = json.data as { data?: Expense[]; total?: number; page?: number; limit?: number; total_pages?: number };
+              responseData = dataObj.data || [];
+              paginationData = {
+                total: dataObj.total || 0,
+                page: dataObj.page || 1,
+                limit: dataObj.limit || 20,
+                total_pages: dataObj.total_pages || 1
+              };
+            } else {
+              responseData = [];
+              paginationData = {
+                total: 0,
+                page: 1,
+                limit: 20,
+                total_pages: 1
+              };
+            }
+          }
         }
       
       console.log('Expenses count:', responseData.length);
@@ -293,13 +320,13 @@ const DataPengeluaran = () => {
       console.log('✅ Expenses loaded successfully');
       setIsLoading(false);
       
-    } catch (err: any) {
+    } catch (err) {
       console.error('=== FETCH EXPENSES ERROR ===');
       console.error('Error:', err);
       
       setIsLoading(false);
       
-      const errorMessage = err?.message || 'Gagal memuat data pengeluaran';
+      const errorMessage = err instanceof Error ? err.message : 'Gagal memuat data pengeluaran';
       showNotification(errorMessage, 'error');
       setExpenses([]);
     }
@@ -420,7 +447,13 @@ const DataPengeluaran = () => {
       const tanggalDate = new Date(formData.tanggal);
       const tanggalISO = tanggalDate.toISOString();
 
-      const payload: any = {
+      const payload: {
+        nama: string;
+        nominal: number;
+        jenis: string;
+        tanggal: string;
+        catatan?: string;
+      } = {
         nama: formData.kategori,
         nominal: parseFloat(formData.jumlah),
         jenis: formData.jenis,
@@ -452,9 +485,9 @@ const DataPengeluaran = () => {
       });
 
       if (!response.ok) {
-        const errorData: any = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as { message?: string }));
         throw new Error(
-          errorData?.message || `HTTP error! status: ${response.status}`
+          (errorData as { message?: string })?.message || `HTTP error! status: ${response.status}`
         );
       }
 
@@ -482,12 +515,12 @@ const DataPengeluaran = () => {
 
       setIsSaving(false);
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('=== SAVE EXPENSE ERROR ===');
       console.error('Error:', err);
       
       setIsSaving(false);
-      const errorMessage = err?.message || `Gagal ${isEdit ? 'mengupdate' : 'menambahkan'} pengeluaran`;
+      const errorMessage = err instanceof Error ? err.message : `Gagal ${isEdit ? 'mengupdate' : 'menambahkan'} pengeluaran`;
       showNotification(errorMessage, 'error');
     }
   };
@@ -520,9 +553,9 @@ const DataPengeluaran = () => {
       );
 
       if (!response.ok) {
-        const errorData: any = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as { message?: string }));
         throw new Error(
-          errorData?.message || `HTTP error! status: ${response.status}`
+          (errorData as { message?: string })?.message || `HTTP error! status: ${response.status}`
         );
       }
       
@@ -539,11 +572,11 @@ const DataPengeluaran = () => {
         setCurrentPage(1);
       }
       
-    } catch (err: any) {
+    } catch (err) {
       console.error('=== DELETE ERROR ===');
       console.error('Error:', err);
       
-      const errorMessage = err?.message || 'Gagal menghapus pengeluaran';
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menghapus pengeluaran';
       showNotification(errorMessage, 'error');
     }
   };
@@ -595,20 +628,31 @@ const DataPengeluaran = () => {
       );
 
       if (!response.ok) {
-        const errorData: any = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({} as { message?: string }));
         throw new Error(
-          errorData?.message || `HTTP error! status: ${response.status}`
+          (errorData as { message?: string })?.message || `HTTP error! status: ${response.status}`
         );
       }
 
-      const json: any = await response.json();
+      const json = await response.json() as { success?: boolean; data?: { data?: Expense[] } | Expense[] };
       
       // Handle API response structure
       let allExpenses: Expense[] = [];
       if (json?.success === true && json?.data) {
-        allExpenses = json.data.data || json.data || [];
+        if (Array.isArray(json.data)) {
+          allExpenses = json.data;
+        } else if ('data' in json.data && Array.isArray(json.data.data)) {
+          allExpenses = json.data.data;
+        }
       } else {
-        allExpenses = json?.data?.data?.data || json?.data?.data || json?.data || [];
+        if (Array.isArray(json?.data)) {
+          allExpenses = json.data;
+        } else if (json?.data && typeof json.data === 'object' && 'data' in json.data) {
+          const dataObj = json.data as { data?: Expense[] };
+          allExpenses = dataObj.data || [];
+        } else {
+          allExpenses = [];
+        }
       }
       
       console.log('Exporting', allExpenses.length, 'expenses');
@@ -654,13 +698,13 @@ const DataPengeluaran = () => {
       
       setIsExporting(false);
       
-    } catch (err: any) {
+    } catch (err) {
       console.error('=== EXPORT ERROR ===');
       console.error('Error:', err);
       
       setIsExporting(false);
       
-      const errorMessage = err?.message || 'Gagal export data pengeluaran';
+      const errorMessage = err instanceof Error ? err.message : 'Gagal export data pengeluaran';
       showNotification(errorMessage, 'error');
     }
   };

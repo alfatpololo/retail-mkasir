@@ -2406,16 +2406,16 @@ export default function POSPage() {
                     Produk Terjual
                   </h3>
                   <div className="space-y-4">
-                    {tutupKasirData.produkterjual.map((kategori: any, idx: number) => (
+                    {tutupKasirData.produkterjual?.map((kategori, idx: number) => (
                       <div key={idx} className="space-y-2">
                         <p className="text-xs font-semibold text-gray-700">{kategori.nama_kategori || 'Lainnya'}</p>
-                        {kategori.produk && Array.isArray(kategori.produk) && kategori.produk.map((produk: any, pIdx: number) => (
+                        {kategori.produk && Array.isArray(kategori.produk) && kategori.produk.map((produk, pIdx: number) => (
                           <div key={pIdx} className="flex items-center justify-between pl-4 text-sm">
                             <span className="text-gray-600">
-                              {produk.nama || 'Produk'} ({produk.jumlah_terbeli || produk.jumlahTerbeli || 0}x)
+                              {produk.nama || 'Produk'} ({produk.jumlah_terbeli || produk.qty || 0}x)
                             </span>
                             <span className="font-medium text-gray-900">
-                              Rp {((produk.harga || 0) * (produk.jumlah_terbeli || produk.jumlahTerbeli || 0)).toLocaleString('id-ID')}
+                              Rp {((produk.harga || 0) * (produk.jumlah_terbeli || produk.qty || 0)).toLocaleString('id-ID')}
                             </span>
                     </div>
                         ))}

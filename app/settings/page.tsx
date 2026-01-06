@@ -80,7 +80,7 @@ export default function SettingsPage() {
             console.error('Error parsing pin_session:', e);
           }
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error loading settings:', error);
       } finally {
         setIsLoading(false);
@@ -145,9 +145,9 @@ export default function SettingsPage() {
               message: 'Pengaturan struk berhasil disimpan (lokal)!',
             });
           }
-        } catch (error: any) {
+        } catch (error) {
           // Jika API error (404 atau lainnya), tetap simpan ke localStorage
-          console.warn('API endpoint tidak tersedia, menyimpan ke localStorage:', error.message);
+          console.warn('API endpoint tidak tersedia, menyimpan ke localStorage:', error instanceof Error ? error.message : String(error));
           setPrinterStatus({
             type: 'success',
             message: 'Pengaturan struk berhasil disimpan (lokal)!',
@@ -159,7 +159,7 @@ export default function SettingsPage() {
           message: 'Pengaturan struk berhasil disimpan (lokal)!',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Gagal menyimpan pengaturan:', error);
       setPrinterStatus({
         type: 'error',
@@ -176,7 +176,7 @@ export default function SettingsPage() {
 
     try {
       if (connectionType === 'usb') {
-        const hasWebUSB = typeof (navigator as any).usb !== 'undefined';
+        const hasWebUSB = typeof navigator.usb !== 'undefined';
         if (!hasWebUSB) {
           setPrinterStatus({
             type: 'error',
@@ -185,8 +185,7 @@ export default function SettingsPage() {
           return;
         }
 
-        // @ts-ignore: WebUSB tidak ada di lib DOM standar
-        const device = await (navigator as any).usb.requestDevice({
+        const device = await navigator.usb!.requestDevice({
           filters: [], // bisa diisi vendorId/productId jika sudah tahu printer
         });
 
@@ -216,7 +215,7 @@ export default function SettingsPage() {
           });
         }
       } else if (connectionType === 'bluetooth') {
-        const hasBluetooth = typeof (navigator as any).bluetooth !== 'undefined';
+        const hasBluetooth = typeof navigator.bluetooth !== 'undefined';
         if (!hasBluetooth) {
           setPrinterStatus({
             type: 'error',
@@ -225,8 +224,7 @@ export default function SettingsPage() {
           return;
         }
 
-        // @ts-ignore: Web Bluetooth tidak ada di lib DOM standar
-        const device = await (navigator as any).bluetooth.requestDevice({
+        const device = await navigator.bluetooth!.requestDevice({
           acceptAllDevices: true,
         });
 
@@ -259,8 +257,8 @@ export default function SettingsPage() {
           deviceName: 'Printer Default Sistem',
         });
       }
-    } catch (error: any) {
-      if (error && error.name === 'NotFoundError') {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotFoundError') {
         setPrinterStatus({
           type: 'error',
           message: 'Perangkat tidak dipilih. Coba lagi dan pilih printer yang sesuai.',
@@ -417,11 +415,11 @@ export default function SettingsPage() {
           message: 'Test print Bluetooth belum diimplementasikan. Gunakan USB atau Sistem.',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Print error:', error);
       setPrinterStatus({
         type: 'error',
-        message: `Gagal mengirim test print: ${error.message || 'Error tidak diketahui'}. Pastikan printer terhubung dan driver sudah terinstall.`,
+        message: `Gagal mengirim test print: ${error instanceof Error ? error.message : 'Error tidak diketahui'}. Pastikan printer terhubung dan driver sudah terinstall.`,
       });
     } finally {
       setIsTesting(false);

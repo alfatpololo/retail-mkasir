@@ -59,7 +59,10 @@ export async function updateStallProfile(
   profile: StallProfile,
   jwt: string
 ): Promise<StallProfile> {
-  const body: any = {
+  const body: Partial<StallProfile> & {
+    lat: number | null;
+    long: number | null;
+  } = {
     ...profile,
     lat: profile.lat ?? null,
     long: profile.long ?? null,

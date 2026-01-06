@@ -67,9 +67,10 @@ export default function LoginPage() {
         setError(response.message || 'Login gagal');
         setIsLoading(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Terjadi kesalahan saat login. Pastikan API URL sudah benar.');
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat login. Pastikan API URL sudah benar.';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

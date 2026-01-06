@@ -78,7 +78,7 @@ export default function BestsellerProductsPage() {
         }
       );
 
-      const json = await response.json().catch(() => ({} as any));
+      const json = await response.json().catch(() => ({} as { success?: boolean; message?: string; data?: { data?: { rows?: Array<{ product_id?: number; id?: number; sku?: string; nama_produk?: string; kategori?: string; total_terjual?: number; total_qty?: number; total_pendapatan?: number; stok_tersisa?: number }> } } }));
 
       if (!response.ok || json.success === false) {
         throw new Error(
@@ -86,18 +86,41 @@ export default function BestsellerProductsPage() {
         );
       }
 
-      const apiRows = (json.data?.data?.rows ?? []) as any[];
-      const mappedRows: BestsellerProductRow[] = apiRows.map((row) => ({
-        id: row.product_id ?? row.id ?? row.sku,
-        sku: row.sku,
-        nama: row.nama_produk,
-        kategori: row.kategori,
-        terjual: row.total_qty ?? 0,
-        pendapatan: row.total_pendapatan ?? 0,
-        stokTersisa: row.stok_tersisa ?? 0,
-        // Tren belum tersedia dari API, sementara gunakan "Stabil"
-        tren: 'Stabil',
-      }));
+      interface ApiBestsellerRow {
+        product_id?: number;
+        id?: number;
+        sku?: string;
+        nama_produk?: string;
+        kategori?: string;
+        total_terjual?: number;
+        total_qty?: number;
+        total_pendapatan?: number;
+        stok_tersisa?: number;
+      }
+      const apiRows: ApiBestsellerRow[] = (json.data?.data?.rows ?? []);
+      const mappedRows: BestsellerProductRow[] = apiRows
+        .filter((row) => {
+          // Filter out rows yang tidak punya id atau sku
+          return (row.product_id ?? row.id ?? row.sku) != null;
+        })
+        .map((row) => {
+          const idValue = row.product_id ?? row.id ?? row.sku;
+          if (idValue == null) {
+            // This should never happen because of filter, but TypeScript needs this check
+            throw new Error('Invalid row data: missing id');
+          }
+          return {
+            id: idValue,
+            sku: row.sku ?? '',
+            nama: row.nama_produk ?? '',
+            kategori: row.kategori ?? '',
+            terjual: row.total_qty ?? row.total_terjual ?? 0,
+            pendapatan: row.total_pendapatan ?? 0,
+            stokTersisa: row.stok_tersisa ?? 0,
+            // Tren belum tersedia dari API, sementara gunakan "Stabil"
+            tren: 'Stabil' as TrendStatus,
+          };
+        });
 
       setRows(mappedRows);
 

@@ -38,19 +38,8 @@ export default function BusinessProfilePage() {
   };
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    try {
-      const { useMainStore } = require('@/utils/stores');
-      const { setNotificationError, setNotificationSuccess } = useMainStore.getState();
-      if (type === 'success' && setNotificationSuccess) {
-        setNotificationSuccess(message);
-      } else if (type === 'error' && setNotificationError) {
-        setNotificationError(message);
-      } else {
-        alert(message);
-      }
-    } catch {
-      alert(message);
-    }
+    // Fallback to alert since stores module doesn't exist
+    alert(message);
   };
 
   useEffect(() => {
@@ -67,8 +56,9 @@ export default function BusinessProfilePage() {
           ...profile,
           ...data,
         });
-      } catch (error: any) {
-        showNotification(error?.message || 'Gagal memuat profil usaha', 'error');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Gagal memuat profil usaha';
+        showNotification(errorMessage, 'error');
       } finally {
         setIsLoading(false);
       }
@@ -78,7 +68,7 @@ export default function BusinessProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleChange = (field: keyof StallProfile, value: any) => {
+  const handleChange = (field: keyof StallProfile, value: string | number | boolean | null) => {
     setProfile((prev) => ({
       ...prev,
       [field]: value,
@@ -112,8 +102,9 @@ export default function BusinessProfilePage() {
         ...updated,
       }));
       showNotification('Profil usaha berhasil disimpan', 'success');
-    } catch (error: any) {
-      showNotification(error?.message || 'Gagal menyimpan profil usaha', 'error');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan profil usaha';
+      showNotification(errorMessage, 'error');
     } finally {
       setIsSaving(false);
     }

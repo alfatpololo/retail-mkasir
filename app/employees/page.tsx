@@ -148,8 +148,8 @@ export default function EmployeesPage() {
             throw new Error('Gagal memuat data karyawan');
           }
 
-          const fallbackData = await fallbackResponse.json();
-          const mapped: Employee[] = (fallbackData.data?.users || []).map((item: any) => ({
+          const fallbackData = await fallbackResponse.json() as { data?: { users?: ApiEmployee[]; total?: number } };
+          const mapped: Employee[] = (fallbackData.data?.users || []).map((item) => ({
             id: String(item.id),
             name: item.nama,
             code: item.kode || '-',
