@@ -4,15 +4,19 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import {
+  fetchBukakasData,
   fetchTutupKasirData,
   tutupKasirApi,
   TutupKasirData,
+  BukakasData,
+  getBukakasId,
 } from '@/utils/cashierSession';
 import { logoutUser } from '@/utils/storage';
 
 export default function CloseCashierPage() {
   const router = useRouter();
-  const [data, setData] = useState<TutupKasirData | null>(null);
+  const [bukakasData, setBukakasData] = useState<BukakasData | null>(null);
+  const [tutupKasirData, setTutupKasirData] = useState<TutupKasirData | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,15 +28,21 @@ export default function CloseCashierPage() {
       try {
         setLoading(true);
         setError(null);
-        const d = await fetchTutupKasirData();
-        if (!d) {
-          setError('Gagal mengambil data ringkasan kasir.');
-        } else {
-          setData(d);
+        
+        // Ambil bukakas_id dari localStorage
+        const bukakasId = getBukakasId();
+        if (!bukakasId) {
+          setError('ID bukakas tidak ditemukan. Silakan buka kasir terlebih dahulu.');
+          setLoading(false);
+          return;
         }
+
+        // Ambil data dari API bukakas/{id}
+        const bukakas = await fetchBukakasData(bukakasId);
+        setBukakasData(bukakas);
       } catch (e) {
         setError(
-          e instanceof Error ? e.message : 'Gagal memuat data ringkasan kasir.'
+          e instanceof Error ? e.message : 'Gagal memuat data bukakas.'
         );
       } finally {
         setLoading(false);
@@ -65,7 +75,19 @@ export default function CloseCashierPage() {
 
     try {
       setProcessing(true);
-      await tutupKasirApi('Tutup kasir dari menu Sidebar');
+      
+      // Ambil data ringkasan tutup kasir sebelum tutup
+      try {
+        const tutupData = await fetchTutupKasirData();
+        if (tutupData) {
+          setTutupKasirData(tutupData);
+        }
+      } catch (e) {
+        console.warn('Gagal mengambil data ringkasan tutup kasir:', e);
+      }
+      
+      // Panggil API tutup kasir
+      await tutupKasirApi('Tutup kasir dari menu Tutup Kasir');
       alert('Kasir berhasil ditutup');
       // Logout dan redirect ke login
       logoutUser();
@@ -191,7 +213,7 @@ export default function CloseCashierPage() {
           </div>
         )}
 
-        {!loading && data && (
+        {!loading && bukakasData && (
           <div className="space-y-6">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -202,7 +224,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-blue-700">Total Transaksi</p>
-                    <p className="text-xl font-bold text-blue-900">{data.total_transaksi}</p>
+                    <p className="text-xl font-bold text-blue-900">{bukakasData.total_transaksi}</p>
                   </div>
                 </div>
               </div>
@@ -214,7 +236,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-emerald-700">Total Penjualan</p>
-                    <p className="text-lg font-bold text-emerald-900">Rp {data.total.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-emerald-900">Rp {bukakasData.total_penjualan.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -226,7 +248,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-green-700">Tunai</p>
-                    <p className="text-lg font-bold text-green-900">Rp {data.tunai.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-green-900">Rp {bukakasData.tunai.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -238,7 +260,7 @@ export default function CloseCashierPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-purple-700">Non Tunai</p>
-                    <p className="text-lg font-bold text-purple-900">Rp {data.nontunai.toLocaleString('id-ID')}</p>
+                    <p className="text-lg font-bold text-purple-900">Rp {bukakasData.non_tunai.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               </div>
@@ -250,7 +272,7 @@ export default function CloseCashierPage() {
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
                   <i className="ri-file-list-3-line text-white text-lg"></i>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Rincian Transaksi</h2>
+                <h2 className="text-xl font-bold text-gray-900">Rincian Bukakas</h2>
               </div>
 
               <div className="space-y-4">
@@ -259,32 +281,40 @@ export default function CloseCashierPage() {
                     <i className="ri-time-line text-gray-400"></i>
                     <span className="text-sm font-medium text-gray-600">Waktu Buka</span>
                   </div>
-                  <span className="text-sm font-bold text-gray-900">{data.waktu_buka}</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    {new Date(bukakasData.waktu_buka).toLocaleString('id-ID', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <i className="ri-user-line text-gray-400"></i>
+                    <span className="text-sm font-medium text-gray-600">Kasir</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-900">{bukakasData.user.nama}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <i className="ri-file-text-line text-gray-400"></i>
+                    <span className="text-sm font-medium text-gray-600">Catatan</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-900">{bukakasData.catatan || '-'}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <i className="ri-price-tag-3-line text-red-500"></i>
-                      <span className="text-sm font-medium text-gray-600">Diskon</span>
+                      <i className="ri-wallet-line text-blue-500"></i>
+                      <span className="text-sm font-medium text-gray-600">Modal Awal</span>
                     </div>
-                    <span className="text-sm font-bold text-red-600">Rp {data.diskon.toLocaleString('id-ID')}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <i className="ri-file-paper-2-line text-amber-500"></i>
-                      <span className="text-sm font-medium text-gray-600">Pajak</span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900">Rp {data.pajak.toLocaleString('id-ID')}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <i className="ri-wallet-3-line text-purple-500"></i>
-                      <span className="text-sm font-medium text-gray-600">Biaya Lainnya</span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900">Rp {data.biaya_lainnya.toLocaleString('id-ID')}</span>
+                    <span className="text-sm font-bold text-gray-900">Rp {bukakasData.modal_awal.toLocaleString('id-ID')}</span>
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
@@ -292,11 +322,59 @@ export default function CloseCashierPage() {
                       <i className="ri-safe-line text-amber-600"></i>
                       <span className="text-sm font-semibold text-amber-700">Saldo Kas</span>
                     </div>
-                    <span className="text-base font-bold text-amber-900">Rp {data.saldo_kas.toLocaleString('id-ID')}</span>
+                    <span className="text-base font-bold text-amber-900">Rp {bukakasData.saldo_kas.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Tampilkan data tutup kasir jika sudah diambil */}
+            {tutupKasirData && (
+              <div className="bg-white rounded-3xl border border-gray-200/50 p-6 shadow-xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
+                    <i className="ri-file-list-3-line text-white text-lg"></i>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">Ringkasan Tutup Kasir</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <i className="ri-time-line text-gray-400"></i>
+                      <span className="text-sm font-medium text-gray-600">Waktu Buka</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{tutupKasirData.waktu_buka}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <i className="ri-price-tag-3-line text-red-500"></i>
+                        <span className="text-sm font-medium text-gray-600">Diskon</span>
+                      </div>
+                      <span className="text-sm font-bold text-red-600">Rp {tutupKasirData.diskon.toLocaleString('id-ID')}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <i className="ri-file-paper-2-line text-amber-500"></i>
+                        <span className="text-sm font-medium text-gray-600">Pajak</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">Rp {tutupKasirData.pajak.toLocaleString('id-ID')}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <i className="ri-wallet-3-line text-purple-500"></i>
+                        <span className="text-sm font-medium text-gray-600">Biaya Lainnya</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">Rp {tutupKasirData.biaya_lainnya.toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Action Button */}
             <div className="bg-white rounded-3xl border-2 border-amber-200 p-6 shadow-xl">

@@ -20,6 +20,7 @@ interface Product {
   productQtyJson?: {
     qty: number;
     harga_jual: number;
+    harga_minimum?: number;
     operator: string;
   }[];
   imageFile?: File | null;
@@ -64,15 +65,16 @@ export default function EditProductModal({
     product.aksesCustom ? '1' : '0'
   );
   const [productQtyRows, setProductQtyRows] = useState<
-    { qty: string; harga_jual: string; operator: string }[]
+    { qty: string; harga_jual: string; harga_minimum: string; operator: string }[]
   >(
     product.productQtyJson && product.productQtyJson.length
       ? product.productQtyJson.map((row) => ({
           qty: String(row.qty),
           harga_jual: String(row.harga_jual),
+          harga_minimum: row.harga_minimum ? String(row.harga_minimum) : '',
           operator: row.operator,
         }))
-      : [{ qty: '', harga_jual: '', operator: 'equals' }]
+      : [{ qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' }]
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [categorySearch, setCategorySearch] = useState(
@@ -219,6 +221,7 @@ export default function EditProductModal({
             .map((row) => ({
               qty: Number(row.qty),
               harga_jual: Number(row.harga_jual),
+              harga_minimum: row.harga_minimum ? Number(row.harga_minimum) : undefined,
               operator: row.operator,
             }))
         : [];
@@ -451,11 +454,11 @@ export default function EditProductModal({
 
           <div className="grid grid-cols-3 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Cost Price</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Harga Jual</label>
               <input
                 type="number"
-                value={formData.costPrice}
-                onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                value={formData.sellPrice}
+                onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
                 placeholder="0"
                 min="0"
                 step="0.01"
@@ -465,11 +468,11 @@ export default function EditProductModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sell Price</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Harga Pokok</label>
               <input
                 type="number"
-                value={formData.sellPrice}
-                onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
+                value={formData.costPrice}
+                onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
                 placeholder="0"
                 min="0"
                 step="0.01"
@@ -592,7 +595,7 @@ export default function EditProductModal({
                   onClick={() =>
                     setProductQtyRows([
                       ...productQtyRows,
-                      { qty: '', harga_jual: '', operator: 'equals' },
+                      { qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' },
                     ])
                   }
                   className="px-3 py-1.5 text-xs rounded-lg bg-emerald-50 text-emerald-700 font-medium hover:bg-emerald-100 cursor-pointer"
@@ -605,7 +608,7 @@ export default function EditProductModal({
                 {productQtyRows.map((row, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-4 gap-3 items-end"
+                    className="grid grid-cols-5 gap-3 items-end"
                   >
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -647,6 +650,27 @@ export default function EditProductModal({
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Harga Minimum
+                      </label>
+                      <input
+                        type="number"
+                        value={row.harga_minimum}
+                        onChange={(e) => {
+                          const next = [...productQtyRows];
+                          next[index] = {
+                            ...next[index],
+                            harga_minimum: e.target.value,
+                          };
+                          setProductQtyRows(next);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
                         Operator
                       </label>
                       <select
@@ -674,7 +698,7 @@ export default function EditProductModal({
                         onClick={() => {
                           if (productQtyRows.length === 1) {
                             setProductQtyRows([
-                              { qty: '', harga_jual: '', operator: 'equals' },
+                              { qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' },
                             ]);
                           } else {
                             setProductQtyRows(

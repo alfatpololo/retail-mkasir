@@ -168,6 +168,7 @@ export async function getUserStall(jwt: string): Promise<UserStallResponse> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${jwt}`,
       },
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -219,6 +220,307 @@ export async function loginPin(credentials: LoginPinRequest, jwt: string): Promi
       throw error;
     }
     throw new Error('Terjadi kesalahan saat verifikasi PIN');
+  }
+}
+
+/**
+ * Interface untuk receipt settings
+ */
+export interface ReceiptSettings {
+  storeName: string;
+  address: string;
+  phone: string;
+  footerNote: string;
+  paperSize: string;
+  printer: string;
+}
+
+/**
+ * Interface untuk response settings
+ */
+export interface SettingsResponse {
+  success: boolean;
+  message: string;
+  data: ReceiptSettings;
+}
+
+/**
+ * Fungsi untuk mengambil pengaturan struk dari API
+ */
+export async function getReceiptSettings(jwt: string): Promise<SettingsResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/settings/receipt`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: SettingsResponse = await response.json();
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat mengambil pengaturan struk');
+  }
+}
+
+/**
+ * Fungsi untuk menyimpan pengaturan struk ke API
+ */
+export async function saveReceiptSettings(settings: ReceiptSettings, jwt: string): Promise<SettingsResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/settings/receipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(settings),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: SettingsResponse = await response.json();
+    return data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat menyimpan pengaturan struk');
+  }
+}
+
+/**
+ * Interface untuk Employee (User Tenant)
+ */
+export interface Employee {
+  id: number;
+  nama: string;
+  kode: string;
+  notelp: string;
+  level: string;
+  pin?: string;
+  status: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login: string | null;
+  stall_id: number;
+}
+
+/**
+ * Interface untuk response employee list
+ */
+export interface EmployeeListResponse {
+  success: boolean;
+  message: string;
+  data: {
+    tenant_stall_id: number;
+    total: number;
+    users: Employee[];
+  };
+}
+
+/**
+ * Interface untuk response single employee
+ */
+export interface EmployeeResponse {
+  success: boolean;
+  message: string;
+  data: Employee;
+}
+
+/**
+ * Normalisasi nomor telepon: 08xxx -> 628xxx
+ */
+function normalizePhone(phone: string): string {
+  let normalized = phone.replace(/\D/g, '');
+  if (normalized.startsWith('0')) {
+    normalized = '62' + normalized.substring(1);
+  } else if (!normalized.startsWith('62')) {
+    normalized = '62' + normalized;
+  }
+  return normalized;
+}
+
+/**
+ * GET /user-tenant/{id} - Get employee by ID
+ */
+export async function getEmployeeById(id: number, jwt: string): Promise<Employee> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: EmployeeResponse = await response.json();
+    return data.data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat mengambil data karyawan');
+  }
+}
+
+/**
+ * POST /user-tenant - Create new employee
+ */
+export async function createEmployee(
+  employee: {
+    nama: string;
+    notelp: string;
+    level: string;
+    pin?: string;
+  },
+  jwt: string
+): Promise<Employee> {
+  try {
+    const normalizedPhone = normalizePhone(employee.notelp);
+
+    const body: any = {
+      nama: employee.nama,
+      notelp: normalizedPhone,
+      level: employee.level,
+    };
+
+    if (employee.pin && employee.pin.length > 0) {
+      if (employee.pin.length !== 6) {
+        throw new Error('PIN harus 6 digit');
+      }
+      body.pin = employee.pin;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/user-tenant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: EmployeeResponse = await response.json();
+    return data.data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat menambahkan karyawan');
+  }
+}
+
+/**
+ * PUT /user-tenant/{id} - Update employee
+ */
+export async function updateEmployee(
+  id: number,
+  employee: {
+    nama?: string;
+    notelp?: string;
+    level?: string;
+    pin?: string;
+    status?: boolean;
+  },
+  jwt: string
+): Promise<Employee> {
+  try {
+    const body: any = {};
+
+    if (employee.nama !== undefined && employee.nama.length > 0) {
+      body.nama = employee.nama;
+    }
+
+    if (employee.notelp !== undefined && employee.notelp.length > 0) {
+      body.notelp = normalizePhone(employee.notelp);
+    }
+
+    if (employee.level !== undefined && employee.level.length > 0) {
+      body.level = employee.level;
+    }
+
+    if (employee.pin !== undefined) {
+      if (employee.pin.length > 0) {
+        if (employee.pin.length !== 6) {
+          throw new Error('PIN harus 6 digit');
+        }
+        body.pin = employee.pin;
+      }
+    }
+
+    if (employee.status !== undefined) {
+      body.status = employee.status;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: EmployeeResponse = await response.json();
+    return data.data;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat memperbarui karyawan');
+  }
+}
+
+/**
+ * DELETE /user-tenant/{id} - Delete employee
+ */
+export async function deleteEmployee(id: number, jwt: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Terjadi kesalahan saat menghapus karyawan');
   }
 }
 

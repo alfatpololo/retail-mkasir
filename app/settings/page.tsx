@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import PrinterStatusIndicator from '@/components/PrinterStatusIndicator';
 import { PrinterConnectionType, usePrinter } from '@/components/PrinterProvider';
 import { reconnectUSBDevice, reconnectBluetoothDevice, sendToUSBPrinter, sendToBluetoothPrinter } from '@/utils/printerUtils';
+import { saveReceiptSettings, ReceiptSettings } from '@/utils/api';
 
 type ConnectionType = PrinterConnectionType;
 
@@ -14,14 +15,16 @@ type PrinterStatus = {
 } | null;
 
 export default function SettingsPage() {
-  const [receiptSettings, setReceiptSettings] = useState({
-    storeName: 'Toko Berkah Jaya',
-    address: 'Jl. Raya Merdeka No. 123, Jakarta Pusat',
-    phone: '021-12345678',
-    footerNote: 'Terima kasih atas kunjungan Anda',
+  const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>({
+    storeName: '',
+    address: '',
+    phone: '',
+    footerNote: '',
     paperSize: '58mm',
-    printer: 'Thermal Printer 01',
+    printer: '',
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const printer = usePrinter();
   const { setConnection, setUsbDevice: setUsbDeviceProvider, setBluetoothDevice: setBluetoothDeviceProvider, usbDevice: providerUsbDevice, bluetoothDevice: providerBluetoothDevice, type: savedType } = printer;
@@ -32,6 +35,60 @@ export default function SettingsPage() {
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
   const [usbDevice, setUsbDevice] = useState<any>(null); // Simpan referensi device USB
+
+  // Load settings dari localStorage dan pin_session saat component mount
+  useEffect(() => {
+    const loadSettings = () => {
+      setIsLoading(true);
+      
+      try {
+        // Cek apakah ada settings yang sudah disimpan di localStorage
+        const savedSettings = typeof window !== 'undefined' ? localStorage.getItem('receipt_settings') : null;
+        
+        if (savedSettings) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            setReceiptSettings({
+              storeName: parsed.storeName || '',
+              address: parsed.address || '',
+              phone: parsed.phone || '',
+              footerNote: parsed.footerNote || '',
+              paperSize: parsed.paperSize || '58mm',
+              printer: parsed.printer || '',
+            });
+            setIsLoading(false);
+            return;
+          } catch (e) {
+            console.error('Error parsing receipt_settings:', e);
+          }
+        }
+
+        // Jika tidak ada di localStorage, ambil dari pin_session
+        const pinSession = typeof window !== 'undefined' ? localStorage.getItem('pin_session') : null;
+        if (pinSession) {
+          try {
+            const sessionData = JSON.parse(pinSession);
+            setReceiptSettings({
+              storeName: sessionData.nama_kios || '',
+              address: sessionData.lokasi || '',
+              phone: sessionData.notelp || '',
+              footerNote: sessionData.receipt_footer_text || '',
+              paperSize: '58mm',
+              printer: '',
+            });
+          } catch (e) {
+            console.error('Error parsing pin_session:', e);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error loading settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   // Sync connection type dan device dari PrinterProvider saat page load
   useEffect(() => {
@@ -60,16 +117,56 @@ export default function SettingsPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (typeof window !== 'undefined') {
-      try {
+    setIsSaving(true);
+    
+    try {
+      // Simpan ke localStorage terlebih dahulu
+      if (typeof window !== 'undefined') {
         localStorage.setItem('receipt_settings', JSON.stringify(receiptSettings));
-        alert('Pengaturan struk berhasil disimpan!');
-      } catch (err) {
-        console.error('Gagal menyimpan pengaturan:', err);
-        alert('Gagal menyimpan pengaturan');
       }
+
+      // Coba simpan ke API jika endpoint tersedia
+      const jwtPin = typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
+      
+      if (jwtPin) {
+        try {
+          const response = await saveReceiptSettings(receiptSettings, jwtPin);
+          
+          if (response.success) {
+            setPrinterStatus({
+              type: 'success',
+              message: 'Pengaturan struk berhasil disimpan!',
+            });
+          } else {
+            setPrinterStatus({
+              type: 'success',
+              message: 'Pengaturan struk berhasil disimpan (lokal)!',
+            });
+          }
+        } catch (error: any) {
+          // Jika API error (404 atau lainnya), tetap simpan ke localStorage
+          console.warn('API endpoint tidak tersedia, menyimpan ke localStorage:', error.message);
+          setPrinterStatus({
+            type: 'success',
+            message: 'Pengaturan struk berhasil disimpan (lokal)!',
+          });
+        }
+      } else {
+        setPrinterStatus({
+          type: 'success',
+          message: 'Pengaturan struk berhasil disimpan (lokal)!',
+        });
+      }
+    } catch (error: any) {
+      console.error('Gagal menyimpan pengaturan:', error);
+      setPrinterStatus({
+        type: 'error',
+        message: 'Gagal menyimpan pengaturan. Silakan coba lagi.',
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -460,99 +557,124 @@ export default function SettingsPage() {
               <h2 className="text-xl font-bold text-gray-900">Pengaturan Struk</h2>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <i className="ri-store-2-line text-emerald-600"></i>
-                  Nama Toko
-                </label>
-                <input
-                  type="text"
-                  value={receiptSettings.storeName}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, storeName: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <i className="ri-map-pin-2-line text-emerald-600"></i>
-                  Alamat
-                </label>
-                <textarea
-                  value={receiptSettings.address}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, address: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <i className="ri-phone-line text-emerald-600"></i>
-                  No. Telepon
-                </label>
-                <input
-                  type="tel"
-                  value={receiptSettings.phone}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, phone: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <i className="ri-message-2-line text-emerald-600"></i>
-                  Catatan Footer
-                </label>
-                <textarea
-                  value={receiptSettings.footerNote}
-                  onChange={(e) => setReceiptSettings({ ...receiptSettings, footerNote: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <i className="ri-file-paper-line text-emerald-600"></i>
-                    Ukuran Kertas
-                  </label>
-                  <select
-                    value={receiptSettings.paperSize}
-                    onChange={(e) => setReceiptSettings({ ...receiptSettings, paperSize: e.target.value })}
-                    className="w-full px-4 py-3 pr-8 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                  >
-                    <option value="58mm">58mm</option>
-                    <option value="80mm">80mm</option>
-                  </select>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <i className="ri-loader-4-line animate-spin text-3xl text-emerald-500"></i>
+                  <p className="text-sm text-gray-600">Memuat pengaturan...</p>
                 </div>
-
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <i className="ri-printer-line text-emerald-600"></i>
-                    Nama Printer
+                    <i className="ri-store-2-line text-emerald-600"></i>
+                    Nama Toko
                   </label>
                   <input
                     type="text"
-                    value={receiptSettings.printer}
-                    onChange={(e) => setReceiptSettings({ ...receiptSettings, printer: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px]"
+                    value={receiptSettings.storeName}
+                    onChange={(e) => setReceiptSettings({ ...receiptSettings, storeName: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px] disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isSaving}
                   />
                 </div>
-              </div>
 
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] min-h-[44px] touch-manipulation"
-                >
-                  <i className="ri-save-line"></i>
-                  Simpan Pengaturan
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <i className="ri-map-pin-2-line text-emerald-600"></i>
+                    Alamat
+                  </label>
+                  <textarea
+                    value={receiptSettings.address}
+                    onChange={(e) => setReceiptSettings({ ...receiptSettings, address: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <i className="ri-phone-line text-emerald-600"></i>
+                    No. Telepon
+                  </label>
+                  <input
+                    type="tel"
+                    value={receiptSettings.phone}
+                    onChange={(e) => setReceiptSettings({ ...receiptSettings, phone: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px] disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <i className="ri-message-2-line text-emerald-600"></i>
+                    Catatan Footer
+                  </label>
+                  <textarea
+                    value={receiptSettings.footerNote}
+                    onChange={(e) => setReceiptSettings({ ...receiptSettings, footerNote: e.target.value })}
+                    rows={2}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <i className="ri-file-paper-line text-emerald-600"></i>
+                      Ukuran Kertas
+                    </label>
+                    <select
+                      value={receiptSettings.paperSize}
+                      onChange={(e) => setReceiptSettings({ ...receiptSettings, paperSize: e.target.value })}
+                      className="w-full px-4 py-3 pr-8 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={isSaving}
+                    >
+                      <option value="58mm">58mm</option>
+                      <option value="80mm">80mm</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <i className="ri-printer-line text-emerald-600"></i>
+                      Nama Printer
+                    </label>
+                    <input
+                      type="text"
+                      value={receiptSettings.printer}
+                      onChange={(e) => setReceiptSettings({ ...receiptSettings, printer: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px] disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl active:scale-[0.98] min-h-[44px] touch-manipulation"
+                  >
+                    {isSaving ? (
+                      <>
+                        <i className="ri-loader-4-line animate-spin"></i>
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <i className="ri-save-line"></i>
+                        Simpan Pengaturan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
           {/* Preview & Koneksi Printer */}

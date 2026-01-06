@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
 
@@ -105,6 +106,8 @@ const formatDate = (date: Date) =>
   }).format(date);
 
 export default function TransactionsPage() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
@@ -567,7 +570,7 @@ export default function TransactionsPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className={`grid grid-cols-1 ${tab === 'history' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-4`}>
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200/50 shadow-sm">
                     <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md">
                       <span className="ri-receipt-line text-white text-xl"></span>
@@ -592,19 +595,21 @@ export default function TransactionsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/50 shadow-sm">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
-                      <span className="ri-line-chart-line text-white text-xl"></span>
+                  {tab !== 'history' && (
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200/50 shadow-sm">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md">
+                        <span className="ri-line-chart-line text-white text-xl"></span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">
+                          Total Keuntungan
+                        </p>
+                        <p className="text-lg font-bold text-emerald-700">
+                          {formatCurrency(totalProfit)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-600 mb-1">
-                        Total Keuntungan
-                      </p>
-                      <p className="text-lg font-bold text-emerald-700">
-                        {formatCurrency(totalProfit)}
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 </div>
 
