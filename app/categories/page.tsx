@@ -360,7 +360,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
+    <div className="min-h-screen bg-gray-50 relative">
       {/* Static sidebar for desktop (2xl up - very large screens only) */}
       <div className="hidden 2xl:block fixed left-0 top-0 bottom-0 w-64 z-50">
         <Sidebar />
@@ -441,12 +441,12 @@ export default function CategoriesPage() {
       <div className="w-full px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 2xl:pl-72 2xl:pr-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
-              <i className="ri-price-tag-3-line text-white text-xl"></i>
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200">
+              <i className="ri-price-tag-3-line text-emerald-600 text-xl"></i>
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Kategori Produk</h1>
-              <p className="text-gray-600 text-xs sm:text-sm">Kelola kategori produk Anda</p>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-1 sm:mb-2">Kategori Produk</h1>
+              <p className="text-gray-500 text-xs sm:text-sm">Kelola kategori produk Anda</p>
             </div>
           </div>
           <button
@@ -460,122 +460,135 @@ export default function CategoriesPage() {
               });
               setShowModal(true);
             }}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
+            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px]"
           >
             <i className="ri-add-line text-base sm:text-lg"></i>
             Tambah Kategori
           </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          {loading && (
-            <div className="col-span-full text-center py-16">
-              <div className="inline-flex items-center gap-2 text-gray-500">
-                <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                Memuat kategori produk...
-              </div>
-            </div>
-          )}
-
-          {!loading && error && (
-            <div className="col-span-full text-center py-16">
-              <div className="inline-flex flex-col items-center gap-2 text-red-500">
-                <i className="ri-error-warning-line text-4xl"></i>
-                <p className="font-medium">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && categories.length === 0 && (
-            <div className="col-span-full text-center py-16">
-              <div className="inline-flex flex-col items-center gap-3">
-                <i className="ri-price-tag-3-line text-5xl text-gray-300"></i>
-                <p className="text-gray-500 font-medium">Tidak ada kategori produk</p>
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && categories.map((category) => (
-            <div
-              key={category.id}
-              className="bg-white rounded-3xl border border-gray-200/50 p-6 hover:shadow-2xl hover:shadow-emerald-100/50 hover:border-emerald-300 transition-all duration-300 cursor-pointer group relative overflow-hidden active:scale-[0.98]"
-              onClick={() => handleOpenDetail(category)}
-            >
-              {/* Gradient background effect */}
-              <div 
-                className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-5 group-hover:opacity-10 transition-opacity duration-300 blur-2xl"
-                style={{ backgroundColor: category.color }}
-              ></div>
-              
-              <div className="relative z-10">
-                <div className="flex items-start justify-between mb-5">
-                  <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 relative overflow-hidden"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${category.color}15 0%, ${category.color}25 100%)`,
-                    }}
-                  >
-                    <div 
-                      className="absolute inset-0 opacity-20"
-                      style={{ backgroundColor: category.color }}
-                    ></div>
-                    <span
-                      className="ri-price-tag-3-line text-3xl relative z-10"
-                      style={{ color: category.color }}
-                    ></span>
-                  </div>
-                  <div className="flex gap-1.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(category);
-                      }}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md active:scale-95"
-                    >
-                      <i className="ri-edit-line text-base"></i>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(category.id);
-                      }}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md active:scale-95"
-                    >
-                      <i className="ri-delete-bin-line text-base"></i>
-                    </button>
-                  </div>
-                </div>
-                
-                <h3 className="text-xl font-bold text-gray-900 mb-2 flex items-center justify-between gap-2 group-hover:text-emerald-600 transition-colors duration-300">
-                  <span className="truncate">{category.name}</span>
-                  <span
-                    className={`text-xs px-3 py-1.5 rounded-xl font-semibold shadow-sm flex-shrink-0 ${
-                      category.status === 1
-                        ? 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200'
-                        : 'bg-gray-100 text-gray-600 border border-gray-200'
-                    }`}
-                  >
-                    {category.status === 1 ? 'Aktif' : 'Nonaktif'}
-                  </span>
-                </h3>
-                
-                {category.deskripsi && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">{category.deskripsi}</p>
-                )}
-                
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
-                    <i className="ri-list-ordered text-emerald-600"></i>
-                    <span>Urutan: {category.urutan}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
-                    <i className="ri-box-3-line text-base"></i>
-                    <span>{category.productCount} produk</span>
-                  </div>
+          <div className="bg-white rounded-xl border border-emerald-100 overflow-hidden">
+            {loading && (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center gap-2 text-emerald-600">
+                  <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                  Memuat kategori produk...
                 </div>
               </div>
-            </div>
-          ))}
+            )}
+
+            {!loading && error && (
+              <div className="text-center py-16">
+                <div className="inline-flex flex-col items-center gap-2 text-red-500">
+                  <i className="ri-error-warning-line text-4xl"></i>
+                  <p className="font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && categories.length === 0 && (
+              <div className="text-center py-16">
+                <div className="inline-flex flex-col items-center gap-3">
+                  <i className="ri-price-tag-3-line text-5xl text-gray-300"></i>
+                  <p className="text-gray-500 font-medium">Tidak ada kategori produk</p>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && categories.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-emerald-200 bg-emerald-50/50">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Nama Kategori
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Deskripsi
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Urutan
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Produk
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-emerald-100">
+                    {categories.map((category) => (
+                      <tr
+                        key={category.id}
+                        onClick={() => handleOpenDetail(category)}
+                        className="hover:bg-emerald-50/30 transition-colors duration-150 cursor-pointer group"
+                      >
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                              <i className="ri-price-tag-3-line text-lg text-emerald-600"></i>
+                            </div>
+                            <span className="text-sm font-medium text-gray-900 group-hover:text-emerald-700">
+                              {category.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="text-sm text-gray-600 line-clamp-1 max-w-md">
+                            {category.deskripsi || '-'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <span className="text-sm text-gray-600">{category.urutan}</span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <span className="text-sm font-medium text-emerald-700">{category.productCount}</span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                              category.status === 1
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {category.status === 1 ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(category);
+                              }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 hover:text-emerald-800 transition-colors duration-150"
+                              title="Edit"
+                            >
+                              <i className="ri-edit-line text-sm"></i>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(category.id);
+                              }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors duration-150"
+                              title="Hapus"
+                            >
+                              <i className="ri-delete-bin-line text-sm"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between mt-6">
@@ -596,7 +609,7 @@ export default function CategoriesPage() {
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={page === totalPages || loading}
-              className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium active:bg-emerald-600 sm:hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed shadow-sm min-h-[44px] touch-manipulation"
+              className="flex-1 sm:flex-initial px-4 py-3 sm:py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium active:bg-emerald-700 sm:hover:bg-emerald-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
             >
               Berikutnya
               <i className="ri-arrow-right-line ml-1"></i>
@@ -685,7 +698,7 @@ export default function CategoriesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-semibold active:bg-emerald-600 sm:hover:bg-emerald-600 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+                  className="flex-1 py-3 bg-emerald-600 text-white rounded-lg font-medium active:bg-emerald-700 sm:hover:bg-emerald-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
                 >
                   {saving ? 'Menyimpan...' : editingCategory ? 'Update' : 'Add'}
                 </button>
@@ -698,34 +711,24 @@ export default function CategoriesPage() {
       {showDetailModal && selectedCategory && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-40 p-4 animate-fade-in" onClick={() => setShowDetailModal(false)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-slide-up overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Header dengan gradient - Sticky */}
-            <div 
-              className="px-4 sm:px-6 py-4 sm:py-6 text-white relative overflow-hidden flex-shrink-0"
-              style={{
-                background: `linear-gradient(135deg, ${selectedCategory.color} 0%, ${selectedCategory.color}dd 100%)`
-              }}
-            >
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
-              <div className="relative z-10 flex items-center justify-between gap-3 w-full">
+            {/* Header - Sticky */}
+            <div className="px-4 sm:px-6 py-4 sm:py-6 bg-emerald-50 border-b border-emerald-200 flex-shrink-0">
+              <div className="flex items-center justify-between gap-3 w-full">
                 <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-xl flex-shrink-0">
-                    <span
-                      className="ri-price-tag-3-line text-2xl sm:text-3xl"
-                      style={{ color: 'white' }}
-                    ></span>
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center flex-shrink-0">
+                    <i className="ri-price-tag-3-line text-2xl sm:text-3xl text-emerald-600"></i>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-2xl font-bold mb-1 truncate">
+                    <h3 className="text-lg sm:text-2xl font-semibold text-gray-800 mb-1 truncate">
                       {selectedCategory.name}
                     </h3>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                      <p className="text-xs sm:text-sm text-white/90 flex items-center gap-1.5">
+                      <p className="text-xs sm:text-sm text-emerald-700 flex items-center gap-1.5">
                         <i className="ri-box-3-line"></i>
                         {selectedCategory.productCount} produk
                       </p>
                       {selectedCategory.deskripsi && (
-                        <span className="text-xs text-white/70 line-clamp-1 hidden sm:inline">
+                        <span className="text-xs text-gray-500 line-clamp-1 hidden sm:inline">
                           {selectedCategory.deskripsi}
                         </span>
                       )}
@@ -734,9 +737,9 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all cursor-pointer active:scale-95 flex-shrink-0"
+                  className="w-10 h-10 flex items-center justify-center rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 hover:text-emerald-800 transition-all cursor-pointer active:scale-95 flex-shrink-0"
                 >
-                  <span className="ri-close-line w-5 h-5 flex items-center justify-center text-white"></span>
+                  <i className="ri-close-line text-lg"></i>
                 </button>
               </div>
             </div>
@@ -774,9 +777,9 @@ export default function CategoriesPage() {
                     {categoryProducts.map((product) => (
                       <div
                         key={product.id}
-                        className="flex flex-col border border-gray-200 rounded-2xl p-4 bg-white hover:shadow-xl hover:border-emerald-300 transition-all duration-200 group cursor-pointer active:scale-[0.98]"
+                        className="flex flex-col border border-gray-200 rounded-xl p-4 bg-white hover:shadow-md hover:border-gray-300 transition-all duration-200 group cursor-pointer"
                       >
-                        <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-md group-hover:scale-105 transition-transform mb-3">
+                        <div className="w-full aspect-square rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden mb-3">
                           {product.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -789,14 +792,14 @@ export default function CategoriesPage() {
                           )}
                         </div>
                         <div className="flex-1 flex flex-col">
-                          <p className="text-sm font-bold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors min-h-[2.5rem]">
+                          <p className="text-sm font-medium text-gray-800 line-clamp-2 mb-2 group-hover:text-gray-900 transition-colors min-h-[2.5rem]">
                             {product.name}
                           </p>
-                          <p className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded-lg mb-3 w-fit">
+                          <p className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded mb-3 w-fit">
                             {product.sku}
                           </p>
                           <div className="mt-auto">
-                            <p className="text-base font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
+                            <p className="text-base font-semibold text-gray-800">
                               {formatCurrency(product.price)}
                             </p>
                           </div>
@@ -835,7 +838,7 @@ export default function CategoriesPage() {
                         categoryProductsPage === categoryProductsTotalPages ||
                         categoryProductsLoading
                       }
-                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-emerald-500 text-white disabled:opacity-50 disabled:cursor-not-allowed active:bg-emerald-600 sm:hover:bg-emerald-600 cursor-pointer text-sm font-medium transition-all shadow-sm min-h-[44px] touch-manipulation"
+                      className="flex-1 sm:flex-initial px-4 py-2.5 rounded-lg bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed active:bg-emerald-700 sm:hover:bg-emerald-700 cursor-pointer text-sm font-medium transition-all min-h-[44px] touch-manipulation"
                     >
                       Berikutnya
                       <i className="ri-arrow-right-line ml-1"></i>

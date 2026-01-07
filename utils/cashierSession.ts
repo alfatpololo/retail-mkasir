@@ -14,6 +14,20 @@ export interface TutupKasirData {
   diskon: number;
   nontunai: number;
   pajak: number;
+  // ringkasan tambahan dari API baru
+  total_pendapatan?: number;
+  total_pendapatan_selesai?: number;
+  total_piutang?: number;
+  total_transaksi_piutang?: number;
+  pengeluaran?: Array<{
+    id?: number | string;
+    nama?: string;
+    nominal?: number;
+    jenis?: string;
+    catatan?: string;
+    tanggal?: string;
+    created_at?: string;
+  }>;
   produkterjual?: Array<{
     nama_kategori?: string;
     produk?: Array<{
@@ -140,53 +154,88 @@ export async function shouldShowBukaKasir(): Promise<{
         'Content-Type': 'application/json',
         Authorization: `Bearer ${jwtPin}`,
       },
+      cache: 'no-store', // Pastikan tidak menggunakan cache browser
     });
 
     const json = await res.json().catch(() => ({} as { success?: boolean; message?: string; data?: unknown }));
     const success = json.success === true;
-    const bukakasData = json.data;
-    const message: string = json.message || '';
+    
+    // Tangani berbagai struktur response data
+    // API bisa mengembalikan data langsung atau nested di dalam data
+    let bukakasData = json.data as { id?: number; bukakas_id?: number; bukakasId?: number; [key: string]: unknown } | undefined;
+    
+    // Jika data tidak ada di json.data, coba langsung dari json (untuk backward compatibility)
+    if (!bukakasData && json && typeof json === 'object' && 'id' in json) {
+      bukakasData = json as { id?: number; bukakas_id?: number; bukakasId?: number; [key: string]: unknown };
+    }
+    
+    const message: string = (json.message as string) || '';
 
     // Cek apakah benar-benar ada bukakas aktif
-    const hasBukakasId = !!(bukakasData?.id || bukakasData?.bukakas_id || bukakasData?.bukakasId);
-    
-    console.log('bukakas/current response:', { 
-      success, 
-      hasData: !!bukakasData, 
-      bukakasData,
-      hasId: hasBukakasId,
-      status: res.status 
-    });
+    // Cek berbagai kemungkinan field untuk ID
+    const hasBukakasId = !!(
+      bukakasData?.id || 
+      bukakasData?.bukakas_id || 
+      bukakasData?.bukakasId ||
+      (typeof bukakasData === 'object' && bukakasData && 'id' in bukakasData)
+    );
 
     // Jika server bilang tidak ada bukakas aktif secara eksplisit,
-    // dan pesannya "No active bukakas found", coba otomatis buka kasir
-    if (!success && message === 'No active bukakas found') {
-      console.log(
-        'Tidak ada bukakas aktif, mencoba otomatis buka kasir dengan saldo awal 0'
-      );
+    // (status 404 atau success: false dengan message yang sesuai)
+    // cek status_uang_bukakasir. Hanya auto-buka kasir jika status_uang_bukakasir === 1
+    if ((!res.ok || !success || !hasBukakasId) && 
+        (message.toLowerCase().includes('no active bukakas') || 
+         message.toLowerCase().includes('not found') ||
+         res.status === 404)) {
+      const statusUangBukakasir = getStatusUangBukakasir();
+      
+      // Jika status_uang_bukakasir === 1, auto-buka kasir
+      if (statusUangBukakasir === 1) {
+        console.log(
+          'Tidak ada bukakas aktif, status_uang_bukakasir = 1, mencoba otomatis buka kasir dengan saldo awal 0'
+        );
 
-      try {
-        const saldoAwal = getStatusUangBukakasir() || 0;
-        await bukaKasirApi({
-          saldoAwal,
-          catatan: '',
-          permanen: false,
-        });
+        try {
+          const saldoAwal = 0;
+          const result = await bukaKasirApi({
+            saldoAwal,
+            catatan: '',
+            permanen: false,
+          });
 
-        // Setelah buka kasir berhasil, anggap tidak perlu buka/tutup lagi sekarang
-        // (bukakasId dan status lokal sudah di-set di bukaKasirApi -> markOpened)
-        return { needOpen: false, needClose: false };
-      } catch (e) {
-        console.error('Gagal otomatis buka kasir:', e);
-        // Kalau gagal otomatis buka kasir, lanjut ke flow lama (needOpen: true)
+          // Verifikasi bahwa bukakas_id benar-benar tersimpan setelah auto-buka kasir
+          const savedBukakasId = getBukakasId();
+          if (!savedBukakasId) {
+            // Coba ambil dari response API dan simpan manual
+            const responseData = result?.data as { id?: number; bukakas_id?: number; bukakasId?: number; [key: string]: unknown } | undefined;
+            const bukakasId = responseData?.id ?? responseData?.bukakas_id ?? responseData?.bukakasId;
+            if (bukakasId && typeof bukakasId === 'number') {
+              localStorage.setItem(KEY_BUKAKAS_ID, String(bukakasId));
+            } else {
+              throw new Error('Gagal mendapatkan bukakas_id setelah auto-buka kasir');
+            }
+          }
+
+          // Setelah buka kasir berhasil, anggap tidak perlu buka/tutup lagi sekarang
+          // (bukakasId dan status lokal sudah di-set di bukaKasirApi -> markOpened)
+          return { needOpen: false, needClose: false };
+        } catch (e) {
+          // Kalau gagal otomatis buka kasir, lanjut ke flow lama (needOpen: true)
+          // Error sudah di-log di bukaKasirApi, tidak perlu log lagi di sini
+        }
       }
+      // Jika status_uang_bukakasir !== 1, tidak auto-buka kasir
+      // Flow akan lanjut ke bawah dan return needOpen: true
     }
 
-    // Jika ada bukakas aktif di server (harus success DAN ada data DAN ada id)
-    if (success && bukakasData && hasBukakasId) {
+    // Jika ada bukakas aktif di server (status 200 dengan success: true DAN ada data DAN ada id)
+    // Atau jika status 200 meskipun success tidak eksplisit true (untuk backward compatibility)
+    if (res.ok && ((success && bukakasData && hasBukakasId) || (bukakasData && hasBukakasId))) {
       const bukakasId =
         bukakasData.id ?? bukakasData.bukakas_id ?? bukakasData.bukakasId;
-      if (bukakasId) {
+      
+      if (bukakasId && typeof bukakasId === 'number') {
+        // Simpan bukakas_id ke localStorage untuk digunakan di aplikasi
         localStorage.setItem(KEY_BUKAKAS_ID, String(bukakasId));
       }
 
@@ -199,7 +248,10 @@ export async function shouldShowBukaKasir(): Promise<{
         bukakasData.created_at ??
         bukakasData.open_date ??
         bukakasData.tanggal;
-      const openDate = openDateRaw ? new Date(openDateRaw) : new Date();
+      const openDate =
+        openDateRaw && (typeof openDateRaw === 'string' || typeof openDateRaw === 'number' || openDateRaw instanceof Date)
+          ? new Date(openDateRaw as string | number | Date)
+          : new Date();
       localStorage.setItem(KEY_IS_OPEN, 'true');
       localStorage.setItem(KEY_LAST_OPEN_DATE, openDate.toISOString());
 
@@ -218,14 +270,6 @@ export async function shouldShowBukaKasir(): Promise<{
 
     // Tidak ada bukakas aktif di server (success: false ATAU data: null ATAU tidak ada id)
     // Clear semua data lokal kasir untuk memastikan tidak ada data lama
-    console.log('Tidak ada bukakas aktif di server:', {
-      success,
-      hasData: !!bukakasData,
-      hasId: hasBukakasId,
-      reason: !success ? 'success: false' : !bukakasData ? 'data: null' : 'tidak ada id'
-    });
-    console.log('Clearing semua data lokal kasir');
-    
     if (typeof window !== 'undefined') {
       localStorage.setItem(KEY_IS_OPEN, 'false');
       localStorage.removeItem(KEY_BUKAKAS_ID);
@@ -233,37 +277,16 @@ export async function shouldShowBukaKasir(): Promise<{
       localStorage.removeItem(KEY_LAST_OPEN_SALDO);
     }
     
-    const result = { needOpen: true, needClose: false };
-    console.log('Return result:', result);
-    return result;
+    return { needOpen: true, needClose: false };
   } catch (error) {
     // Fallback ke lokal - hanya jika API error (network error, dll)
     // Tapi jika error karena tidak ada bukakas, jangan pakai data lokal
-    console.error('Error checking bukakas/current:', error);
-    console.log('Masuk ke catch block, cek data lokal');
-    
     if (typeof window === 'undefined') {
       return { needOpen: true, needClose: false };
     }
     
-    // Jika API error, cek dulu apakah ada bukakas_id di localStorage
-    // Jika tidak ada bukakas_id, berarti memang tidak ada bukakas aktif
-    const bukakasId = localStorage.getItem(KEY_BUKAKAS_ID);
-    console.log('bukakasId dari localStorage:', bukakasId);
-    
-    if (!bukakasId) {
-      // Tidak ada bukakas_id, berarti tidak ada bukakas aktif
-      console.log('Tidak ada bukakas_id di localStorage, clear semua dan return needOpen: true');
-      localStorage.setItem(KEY_IS_OPEN, 'false');
-      localStorage.removeItem(KEY_LAST_OPEN_DATE);
-      localStorage.removeItem(KEY_LAST_OPEN_SALDO);
-      return { needOpen: true, needClose: false };
-    }
-    
-    // Jika ada bukakas_id di lokal tapi API error, cek data lokal
-    // TAPI: karena API error, kita tidak bisa verifikasi apakah bukakas_id masih valid
-    // Untuk aman, anggap tidak ada bukakas aktif dan clear data lokal
-    console.log('Ada bukakas_id di localStorage tapi API error, clear data lokal untuk aman');
+    // Jika API error, untuk aman anggap tidak ada bukakas aktif dan clear data lokal
+    // Karena kita tidak bisa verifikasi apakah bukakas_id masih valid
     localStorage.setItem(KEY_IS_OPEN, 'false');
     localStorage.removeItem(KEY_BUKAKAS_ID);
     localStorage.removeItem(KEY_LAST_OPEN_DATE);

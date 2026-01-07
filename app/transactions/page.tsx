@@ -4,8 +4,18 @@ import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
+import { getBukakasId } from '@/utils/cashierSession';
+import { usePrinter } from '@/components/PrinterProvider';
+import {
+  generateReceiptESC_POS,
+  printToPrinter,
+  reconnectUSBDevice,
+  ReceiptData,
+  USBDevice,
+} from '@/utils/printerUtils';
 
 type QuickFilter = 'Semua' | 'Hari Ini' | 'Minggu Ini' | 'Bulan Ini';
+type StatusFilter = 'Semua' | 'Selesai' | 'Piutang' | 'Batal';
 
 interface ApiTransactionCustomer {
   nama: string;
@@ -39,6 +49,9 @@ interface ApiTransaction {
   nominal_bayar: number;
   kembalian: number;
   total_profit: number;
+  status?: string;
+  batal?: boolean;
+  alasan_batal?: string | null;
   customer?: ApiTransactionCustomer | null;
   user?: ApiTransactionUser | null;
   nama_pelanggan?: string | null;
@@ -73,6 +86,9 @@ interface Transaction {
   pelanggan: string;
   kasir: string;
   metodePembayaran: string;
+  status?: string;
+  batal?: boolean;
+  alasanBatal?: string | null;
   items: {
     namaProduk: string;
     qty: number;
@@ -108,11 +124,13 @@ const formatDate = (date: Date) =>
 function TransactionsPageContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
+  const printer = usePrinter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('Hari Ini');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('Semua');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -122,6 +140,10 @@ function TransactionsPageContent() {
   const [totalItems, setTotalItems] = useState(0);
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [transactionToCancel, setTransactionToCancel] = useState<Transaction | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Reset sidebar state saat window resize untuk memastikan konsistensi
   useEffect(() => {
@@ -219,6 +241,25 @@ function TransactionsPageContent() {
           params.set('end_date', toApiDate(endDate));
         }
 
+        // Tambahkan filter bukakas_id jika tab adalah history
+        if (tab === 'history') {
+          const bukakasId = getBukakasId();
+          if (bukakasId) {
+            params.set('bukakas_id', bukakasId);
+          }
+          
+          // Tambahkan filter status jika tab adalah history
+          if (statusFilter !== 'Semua') {
+            if (statusFilter === 'Batal') {
+              params.set('status', 'dibatalkan');
+            } else if (statusFilter === 'Piutang') {
+              params.set('status', 'piutang');
+            } else if (statusFilter === 'Selesai') {
+              params.set('status', 'selesai');
+            }
+          }
+        }
+
         const response = await fetch(
           `${API_BASE_URL}/transactions?${params.toString()}`,
           {
@@ -227,6 +268,7 @@ function TransactionsPageContent() {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${jwtPin}`,
             },
+            cache: 'no-store',
           }
         );
 
@@ -254,7 +296,10 @@ function TransactionsPageContent() {
           pelanggan:
             trx.customer?.nama || trx.nama_pelanggan || '-',
           kasir: trx.user?.nama || '-',
-          metodePembayaran: trx.transaction_method?.nama || 'Cash',
+          metodePembayaran: trx.status === 'piutang' ? '-' : (trx.transaction_method?.nama || 'Cash'),
+          status: trx.status || 'selesai',
+          batal: trx.batal || false,
+          alasanBatal: trx.alasan_batal || null,
           items: (trx.transaction_details || []).map((item) => ({
             namaProduk: item.nama_produk,
             qty: item.qty,
@@ -289,10 +334,12 @@ function TransactionsPageContent() {
 
     fetchTransactions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, quickFilter, searchQuery, customStart, customEnd]);
+  }, [page, quickFilter, searchQuery, customStart, customEnd, statusFilter, tab]);
 
   const totalGrand = useMemo(
-    () => transactions.reduce((sum, t) => sum + t.grandTotal, 0),
+    () => transactions
+      .filter(t => !t.batal && t.status !== 'piutang')
+      .reduce((sum, t) => sum + t.grandTotal, 0),
     [transactions]
   );
 
@@ -301,117 +348,226 @@ function TransactionsPageContent() {
     [transactions]
   );
 
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
     if (!selectedTransaction) return;
 
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
+    try {
+      // Ambil pengaturan struk dari localStorage
+      let storeName = 'TOKO';
+      let address = '';
+      let phone = '';
+      let footerNote = '';
+
+      try {
+        if (typeof window !== 'undefined') {
+          const savedSettings =
+            window.localStorage.getItem('receipt_settings');
+          if (savedSettings) {
+            const parsed = JSON.parse(savedSettings);
+            storeName = parsed.storeName || storeName;
+            address = parsed.address || address;
+            phone = parsed.phone || phone;
+            footerNote = parsed.footerNote || footerNote;
+          }
+
+          // Fallback: jika nama toko belum terisi, pakai data dari pin_session
+          if (!storeName || storeName === 'TOKO') {
+            const pinSession = window.localStorage.getItem('pin_session');
+            if (pinSession) {
+              try {
+                const sessionData = JSON.parse(pinSession);
+                storeName =
+                  sessionData.nama_kios || storeName || 'TOKO';
+                address =
+                  sessionData.lokasi || address || '';
+                phone =
+                  sessionData.notelp || phone || '';
+                footerNote =
+                  sessionData.receipt_footer_text ||
+                  footerNote ||
+                  '';
+              } catch (err) {
+                console.warn(
+                  'Gagal membaca pin_session untuk fallback nama toko:',
+                  err
+                );
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(
+          'Gagal membaca pengaturan struk dari localStorage:',
+          e
+        );
+      }
+
+      const now = new Date(selectedTransaction.tanggal);
+      const receiptItems = selectedTransaction.items.map((item) => ({
+        name: item.namaProduk,
+        quantity: item.qty,
+        price: item.hargaJual,
+        subtotal: item.subtotal,
+      }));
+
+      const receiptData: ReceiptData = {
+        storeName,
+        address,
+        phone,
+        footerNote,
+        transactionId: selectedTransaction.nomorTransaksi,
+        date: now.toLocaleDateString('id-ID'),
+        time: now.toLocaleTimeString('id-ID'),
+        items: receiptItems,
+        subtotal: selectedTransaction.subtotal,
+        tax: selectedTransaction.pajak,
+        discount: selectedTransaction.diskon,
+        total: selectedTransaction.grandTotal,
+        paid: selectedTransaction.nominalBayar,
+        change: selectedTransaction.kembalian,
+        paymentMethod: selectedTransaction.metodePembayaran,
+        customerName: selectedTransaction.pelanggan !== '-' ? selectedTransaction.pelanggan : undefined,
+        isDebt: selectedTransaction.status === 'piutang',
+        cashierName: selectedTransaction.kasir !== '-' ? selectedTransaction.kasir : undefined,
+      };
+
+      const escposData = generateReceiptESC_POS(receiptData);
+
+      // Jika belum ada koneksi printer atau mode sistem, fallback ke print via browser
+      if (!printer.isConnected || printer.type === 'system') {
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+          return;
+        }
+
+        const printArea = document.getElementById('transactions-receipt-print');
+        if (!printArea) return;
+
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (!printWindow) return;
+
+        printWindow.document.open();
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Struk ${selectedTransaction.nomorTransaksi}</title>
+            </head>
+            <body>
+              <div class="receipt-container">
+                ${printArea.innerHTML}
+              </div>
+              <script>
+                window.onload = function() {
+                  window.print();
+                  window.close();
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        return;
+      }
+
+      if (printer.type === 'usb') {
+        let device: USBDevice | null = (printer as unknown as { usbDevice?: USBDevice }).usbDevice || null;
+
+        if (!device) {
+          device = await reconnectUSBDevice();
+        }
+
+        if (!device) {
+          console.error('Printer USB belum terhubung, fallback ke print browser');
+          if (typeof window !== 'undefined') {
+            window.print();
+          }
+          return;
+        }
+
+        await printToPrinter('usb', device, escposData);
+      } else {
+        // Bluetooth belum diimplementasikan, fallback ke print sistem
+        if (typeof window !== 'undefined') {
+          window.print();
+        }
+      }
+    } catch (error) {
+      console.error('Print error:', error);
+      if (typeof window !== 'undefined') {
+        try {
+          window.print();
+        } catch (fallbackErr) {
+          console.error('Fallback window.print error:', fallbackErr);
+        }
+      }
+    }
+  };
+
+  const handleCancelTransaction = (transaction: Transaction, e: React.MouseEvent) => {
+    e.stopPropagation(); // Mencegah row click
+    setTransactionToCancel(transaction);
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!transactionToCancel || !cancelReason.trim()) {
       return;
     }
 
-    const printArea = document.getElementById('transactions-receipt-print');
-    if (!printArea) return;
+    try {
+      setCancelling(true);
+      const jwtPin =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('jwt_pin')
+          : null;
 
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
-    if (!printWindow) return;
+      if (!jwtPin) {
+        setError('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
+        setShowCancelModal(false);
+        return;
+      }
 
-    const styles = `
-      <style>
-        body {
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 11px;
-          margin: 0;
-          padding: 10px;
+      const response = await fetch(
+        `${API_BASE_URL}/transactions/${transactionToCancel.id}/batal`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${jwtPin}`,
+          },
+          body: JSON.stringify({
+            alasan_batal: cancelReason.trim(),
+          }),
         }
-        .receipt-container {
-          width: 280px;
-          margin: 0 auto;
-        }
-        .receipt-header {
-          text-align: center;
-          border-bottom: 1px dashed #000;
-          padding-bottom: 6px;
-          margin-bottom: 6px;
-        }
-        .receipt-header h1 {
-          font-size: 13px;
-          margin: 0;
-        }
-        .receipt-header p {
-          margin: 2px 0;
-        }
-        .receipt-section-title {
-          font-weight: 600;
-          margin: 4px 0;
-        }
-        .items-header, .items-row {
-          display: flex;
-          font-size: 10px;
-        }
-        .items-header {
-          border-bottom: 1px solid #000;
-          padding-bottom: 2px;
-          margin-bottom: 2px;
-        }
-        .items-row {
-          padding: 2px 0;
-          border-bottom: 1px dashed #ddd;
-        }
-        .items-name {
-          flex: 1;
-        }
-        .items-qty {
-          width: 35px;
-          text-align: center;
-        }
-        .items-total {
-          width: 70px;
-          text-align: right;
-        }
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          margin: 2px 0;
-          font-size: 10px;
-        }
-        .summary-row.total {
-          font-weight: 700;
-          border-top: 1px dashed #000;
-          margin-top: 4px;
-          padding-top: 4px;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 10px;
-          border-top: 1px dashed #000;
-          padding-top: 6px;
-        }
-      </style>
-    `;
+      );
 
-    printWindow.document.open();
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Struk ${selectedTransaction.nomorTransaksi}</title>
-          ${styles}
-        </head>
-        <body>
-          <div class="receipt-container">
-            ${printArea.innerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      // Refresh transaksi setelah cancel
+      setShowCancelModal(false);
+      setTransactionToCancel(null);
+      setCancelReason('');
+      setSelectedTransaction(null);
+      
+      // Trigger refresh
+      setPage(1);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Gagal membatalkan transaksi';
+      setError(message);
+      setShowCancelModal(false);
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative pb-10">
       {/* Static sidebar for desktop (2xl up - very large screens only) */}
       <div className="hidden 2xl:block fixed left-0 top-0 bottom-0 w-64 z-50">
@@ -570,6 +726,37 @@ function TransactionsPageContent() {
                   )}
                 </div>
 
+                {tab === 'history' && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs font-medium text-gray-600 self-center">Status:</span>
+                    {(['Semua', 'Selesai', 'Piutang', 'Batal'] as StatusFilter[]).map(
+                      (filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setPage(1);
+                            setStatusFilter(filter);
+                          }}
+                          className={`px-4 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                            statusFilter === filter
+                              ? filter === 'Batal'
+                                ? 'bg-red-500 border-red-500 text-white'
+                                : filter === 'Piutang'
+                                ? 'bg-amber-500 border-amber-500 text-white'
+                                : filter === 'Selesai'
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : 'bg-gray-500 border-gray-500 text-white'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {filter}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+
                 <div className={`grid grid-cols-1 ${tab === 'history' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-4`}>
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200/50 shadow-sm">
                     <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center shadow-md">
@@ -649,6 +836,11 @@ function TransactionsPageContent() {
                       <th className="px-5 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Metode
                       </th>
+                      {tab === 'history' && (
+                        <th className="px-5 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
+                          Status
+                        </th>
+                      )}
                       <th className="px-5 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-50 to-gray-100">
                         Aksi
                       </th>
@@ -658,7 +850,7 @@ function TransactionsPageContent() {
                     {!loading && transactions.length === 0 && (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={tab === 'history' ? 7 : 6}
                           className="px-5 py-12 text-center"
                         >
                           <div className="flex flex-col items-center gap-2">
@@ -674,8 +866,12 @@ function TransactionsPageContent() {
                       return (
                         <tr
                           key={transaction.id}
-                          className={`cursor-pointer transition-colors hover:bg-emerald-50/30 ${
-                            isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : ''
+                          className={`cursor-pointer transition-colors ${
+                            transaction.batal
+                              ? 'bg-red-50/30 hover:bg-red-50/50 border-l-4 border-l-red-500'
+                              : isSelected
+                              ? 'bg-emerald-50 border-l-4 border-l-emerald-500'
+                              : 'hover:bg-emerald-50/30'
                           }`}
                           onClick={() => setSelectedTransaction(transaction)}
                         >
@@ -697,24 +893,65 @@ function TransactionsPageContent() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                            {transaction.nomorTransaksi}
+                            <div className="flex items-center gap-2">
+                              <span>{transaction.nomorTransaksi}</span>
+                              {transaction.batal && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                                  Batal
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-5 py-4 text-sm font-bold text-emerald-600 whitespace-nowrap text-right">
+                          <td className={`px-5 py-4 text-sm font-bold whitespace-nowrap text-right ${transaction.batal ? 'text-red-600' : 'text-emerald-600'}`}>
                             {formatCurrency(transaction.grandTotal)}
                           </td>
                           <td className="px-5 py-4 text-sm text-gray-700 whitespace-nowrap">
                             {transaction.pelanggan}
                           </td>
                           <td className="px-5 py-4 text-sm whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                              {transaction.metodePembayaran}
-                            </span>
+                            {transaction.metodePembayaran === '-' ? (
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                                -
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                {transaction.metodePembayaran}
+                              </span>
+                            )}
                           </td>
+                          {tab === 'history' && (
+                            <td className="px-5 py-4 text-center whitespace-nowrap">
+                              {transaction.batal ? (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                                  Batal
+                                </span>
+                              ) : transaction.status === 'piutang' ? (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                                  Piutang
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  Selesai
+                                </span>
+                              )}
+                            </td>
+                          )}
                           <td className="px-5 py-4 text-center whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer">
-                              <i className="ri-eye-line"></i>
-                              Detail
-                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer">
+                                <i className="ri-eye-line"></i>
+                                Detail
+                              </span>
+                              {tab === 'history' && !transaction.batal && (
+                                <button
+                                  onClick={(e) => handleCancelTransaction(transaction, e)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+                                >
+                                  <i className="ri-close-circle-line"></i>
+                                  Batal
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -758,38 +995,79 @@ function TransactionsPageContent() {
             {selectedTransaction && (
               <div className="hidden lg:block lg:col-span-5">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 h-full flex flex-col sticky top-6">
-                  <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-emerald-50/50 to-transparent flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="ri-receipt-line text-emerald-600 text-lg"></span>
-                <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      Detail Struk
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Pilih transaksi di kiri untuk melihat struk
-                    </p>
+                  <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-emerald-50/50 to-transparent">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                          <i className="ri-receipt-line text-emerald-600 text-lg"></i>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">
+                            Detail Struk
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            Pilih transaksi di kiri untuk melihat struk
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {tab === 'history' && selectedTransaction && !selectedTransaction.batal && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTransactionToCancel(selectedTransaction);
+                              setCancelReason('');
+                              setShowCancelModal(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors shadow-sm"
+                          >
+                            <i className="ri-close-circle-line text-base"></i>
+                            <span>Batal</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handlePrintReceipt}
+                          disabled={!selectedTransaction}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
+                        >
+                          <i className="ri-printer-line text-base"></i>
+                          <span>Cetak Struk</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTransaction(null)}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors flex-shrink-0"
+                          title="Tutup"
+                        >
+                          <i className="ri-close-line text-xl"></i>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handlePrintReceipt}
-                  disabled={!selectedTransaction}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-sm"
-                >
-                  <i className="ri-printer-line"></i>
-                  Cetak Struk
-                </button>
-                </div>
 
-              {selectedTransaction ? (
-                <div
-                  id="transactions-receipt-print"
-                  className="flex-1 overflow-y-auto px-6 py-6 space-y-5"
-                >
+                  {selectedTransaction ? (
+                    <div
+                      id="transactions-receipt-print"
+                      className="flex-1 overflow-y-auto px-6 py-6 space-y-5"
+                    >
                   <div className="text-center border-b border-dashed border-gray-300 pb-5">
-                    <p className="text-base font-bold text-gray-900 tracking-wide">
-                      STRUK TRANSAKSI
-                    </p>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <p className="text-base font-bold text-gray-900 tracking-wide">
+                        STRUK TRANSAKSI
+                      </p>
+                      {selectedTransaction.batal && (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+                          DIBATALKAN
+                        </span>
+                      )}
+                    </div>
+                    {selectedTransaction.batal && selectedTransaction.alasanBatal && (
+                      <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-xs font-semibold text-red-700 mb-1">Alasan Pembatalan:</p>
+                        <p className="text-xs text-red-600">{selectedTransaction.alasanBatal}</p>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">
                       {selectedTransaction.kasir !== '-'
                         ? `Kasir: ${selectedTransaction.kasir}`
@@ -895,19 +1173,19 @@ function TransactionsPageContent() {
                     <p className="text-[11px] text-gray-500">
                       Selamat berbelanja kembali
                     </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-                  <span className="ri-receipt-line text-4xl text-gray-300 mb-3"></span>
-                  <p className="text-sm font-medium text-gray-700">
-                    Belum ada transaksi yang dipilih
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Klik salah satu baris transaksi di sebelah kiri untuk
-                    melihat detail struk.
-                  </p>
-                </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-6">
+                      <span className="ri-receipt-line text-4xl text-gray-300 mb-3"></span>
+                      <p className="text-sm font-medium text-gray-700">
+                        Belum ada transaksi yang dipilih
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Klik salah satu baris transaksi di sebelah kiri untuk
+                        melihat detail struk.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -915,6 +1193,77 @@ function TransactionsPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Modal Batal Transaksi */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCancelModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <i className="ri-close-circle-line text-2xl text-red-600"></i>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Batalkan Transaksi</h3>
+                <p className="text-sm text-gray-500">Masukkan alasan pembatalan</p>
+              </div>
+            </div>
+
+            {transactionToCancel && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 mb-1">Nomor Transaksi</p>
+                <p className="text-sm font-semibold text-gray-900">{transactionToCancel.nomorTransaksi}</p>
+                <p className="text-xs text-gray-600 mt-2 mb-1">Total</p>
+                <p className="text-sm font-semibold text-emerald-600">{formatCurrency(transactionToCancel.grandTotal)}</p>
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Alasan Pembatalan <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Masukkan alasan pembatalan transaksi..."
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setTransactionToCancel(null);
+                }}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancel}
+                disabled={!cancelReason.trim() || cancelling}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {cancelling ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Membatalkan...
+                  </span>
+                ) : (
+                  'Konfirmasi Batal'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

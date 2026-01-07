@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
+import { getBukakasId } from '@/utils/cashierSession';
 
 type TrendStatus = 'Naik' | 'Turun' | 'Stabil';
 
@@ -67,6 +68,12 @@ export default function BestsellerProductsPage() {
       params.set('limit', String(limit));
       if (startDate) params.set('tanggal_awal', startDate);
       if (endDate) params.set('tanggal_akhir', endDate);
+
+      // Tambahkan filter bukakas_id
+      const bukakasId = getBukakasId();
+      if (bukakasId) {
+        params.set('bukakas_id', bukakasId);
+      }
 
       const response = await fetch(
         `${API_BASE_URL}/reports/produk_terlaris?${params.toString()}`,

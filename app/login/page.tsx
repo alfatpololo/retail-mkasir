@@ -47,8 +47,10 @@ export default function LoginPage() {
         version: '1.0.0',
       });
 
+      console.log('Login response:', response); // Debug log
+
       // Cek apakah login berhasil
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
         // Simpan data user ke storage
         saveUserSession(response.data);
 
@@ -61,10 +63,15 @@ export default function LoginPage() {
           pinVerified: false,
         }));
 
+        // Reset loading state sebelum redirect
+        setIsLoading(false);
+
         // Redirect ke halaman PIN atau dashboard
         router.push('/pin');
       } else {
-        setError(response.message || 'Login gagal');
+        const errorMsg = response?.message || 'Login gagal. Response tidak valid.';
+        console.error('Login failed:', errorMsg, response);
+        setError(errorMsg);
         setIsLoading(false);
       }
     } catch (error) {

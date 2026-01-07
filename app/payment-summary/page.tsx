@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
+import { getBukakasId } from '@/utils/cashierSession';
 
 type PaymentMethod = 'Semua' | 'Tunai' | 'Transfer Bank' | 'E-Wallet';
 
@@ -103,6 +104,12 @@ export default function PaymentSummaryPage() {
       if (endDate) params.append('end_date', endDate);
       params.append('page', '1');
       params.append('limit', '50');
+
+      // Tambahkan filter bukakas_id
+      const bukakasId = getBukakasId();
+      if (bukakasId) {
+        params.append('bukakas_id', bukakasId);
+      }
 
       const url = `${API_BASE_URL}/reports/ringkasan_pembayaran?${params.toString()}`;
 

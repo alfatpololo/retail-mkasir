@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/utils/api';
+import { getBukakasId } from '@/utils/cashierSession';
 import Sidebar from '@/components/Sidebar';
 
 interface Expense {
@@ -453,6 +454,7 @@ const DataPengeluaran = () => {
         jenis: string;
         tanggal: string;
         catatan?: string;
+        bukakas_id?: number;
       } = {
         nama: formData.kategori,
         nominal: parseFloat(formData.jumlah),
@@ -463,6 +465,14 @@ const DataPengeluaran = () => {
       // Add catatan if not empty
       if (formData.deskripsi && formData.deskripsi.trim()) {
         payload.catatan = formData.deskripsi;
+      }
+
+      // Add bukakas_id hanya saat menambah (bukan edit)
+      if (!isEdit) {
+        const bukakasId = getBukakasId();
+        if (bukakasId) {
+          payload.bukakas_id = bukakasId;
+        }
       }
 
       if (isEdit && !selectedExpense) {

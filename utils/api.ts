@@ -2,12 +2,12 @@
  * Konfigurasi API Base URL
  * 
  * Untuk mengubah URL API, edit nilai di bawah ini:
- * - Ganti 'https://your-api-url.com/api' dengan URL API yang sebenarnya
+ * - Ganti dengan URL API yang sebenarnya
  * - Atau set environment variable NEXT_PUBLIC_API_URL saat build
  * 
  * Contoh: 'https://api.example.com/api' atau 'http://localhost:8000/api'
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://your-api-url.com/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 /**
  * Interface untuk request login
@@ -140,6 +140,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(credentials),
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -198,6 +199,7 @@ export async function loginPin(credentials: LoginPinRequest, jwt: string): Promi
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(credentials),
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -255,6 +257,7 @@ export async function getReceiptSettings(jwt: string): Promise<SettingsResponse>
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${jwt}`,
       },
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -284,6 +287,7 @@ export async function saveReceiptSettings(settings: ReceiptSettings, jwt: string
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(settings),
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -364,6 +368,7 @@ export async function getEmployeeById(id: number, jwt: string): Promise<Employee
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${jwt}`,
       },
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -421,6 +426,7 @@ export async function createEmployee(
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(body),
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -493,6 +499,7 @@ export async function updateEmployee(
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(body),
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {
@@ -521,6 +528,7 @@ export async function deleteEmployee(id: number, jwt: string): Promise<void> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${jwt}`,
       },
+      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
     });
 
     if (!response.ok) {

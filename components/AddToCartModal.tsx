@@ -1,6 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface ProductQty {
+  id: number;
+  qty: string;
+  harga_jual: string;
+  harga_minimum: string;
+  operator: string;
+}
 
 interface Product {
   id: string;
@@ -9,6 +17,7 @@ interface Product {
   category: string;
   image: string;
   stock: number;
+  productQty?: ProductQty[];
 }
 
 interface AddToCartModalProps {
@@ -31,16 +40,121 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
   const [negotiatedPrice, setNegotiatedPrice] = useState('');
   const [note, setNote] = useState('');
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [priceError, setPriceError] = useState('');
 
   const units = ['pcs', 'batang', 'bungkus', 'bal', 'lusin', 'karton'];
   const maxStock = product.stock ?? 0;
+
+  // Cari harga_minimum dari product_qty yang sesuai dengan quantity
+  const getMinPrice = (): number | null => {
+    if (!product.productQty || product.productQty.length === 0) {
+      return null;
+    }
+
+    // Cari product_qty yang sesuai dengan quantity saat ini
+    const matchingQty = product.productQty.find((pq) => {
+      const qtyValue = parseFloat(pq.qty);
+      if (pq.operator === 'equals') {
+        return qtyValue === quantity;
+      }
+      // Tambahkan operator lain jika diperlukan
+      return false;
+    });
+
+    if (matchingQty && matchingQty.harga_minimum) {
+      const minPrice = parseFloat(matchingQty.harga_minimum);
+      return minPrice > 0 ? minPrice : null;
+    }
+
+    return null;
+  };
+
+  const minPrice = getMinPrice();
+
+  // Validasi ulang harga nego saat quantity berubah
+  useEffect(() => {
+    if (negotiatedPrice && negotiatedPrice.trim() !== '') {
+      const price = parseFloat(negotiatedPrice);
+      if (!isNaN(price)) {
+        // Hitung ulang minPrice berdasarkan quantity saat ini
+        let currentMinPrice: number | null = null;
+        if (product.productQty && product.productQty.length > 0) {
+          const matchingQty = product.productQty.find((pq) => {
+            const qtyValue = parseFloat(pq.qty);
+            if (pq.operator === 'equals') {
+              return qtyValue === quantity;
+            }
+            return false;
+          });
+
+          if (matchingQty && matchingQty.harga_minimum) {
+            const minPriceValue = parseFloat(matchingQty.harga_minimum);
+            currentMinPrice = minPriceValue > 0 ? minPriceValue : null;
+          }
+        }
+
+        if (currentMinPrice !== null && price < currentMinPrice) {
+          setPriceError(`Harga nego minimum: Rp ${currentMinPrice.toLocaleString()}`);
+        } else if (price > product.price) {
+          setPriceError(`Harga nego tidak boleh melebihi harga normal: Rp ${product.price.toLocaleString()}`);
+        } else {
+          setPriceError('');
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quantity, negotiatedPrice]);
 
   const finalPrice = negotiatedPrice ? parseFloat(negotiatedPrice) : product.price;
   const safeQty = Math.min(quantity, maxStock || quantity);
   const subtotal = finalPrice * safeQty;
 
+  const handlePriceChange = (value: string) => {
+    setPriceError('');
+
+    if (!value || value.trim() === '') {
+      setNegotiatedPrice(value);
+      return;
+    }
+
+    const price = parseFloat(value);
+    if (isNaN(price)) {
+      setNegotiatedPrice(value);
+      return;
+    }
+
+    // Batasi harga tidak boleh melebihi harga produk normal
+    if (price > product.price) {
+      setNegotiatedPrice(product.price.toString());
+      setPriceError(`Harga nego tidak boleh melebihi harga normal: Rp ${product.price.toLocaleString()}`);
+      return;
+    }
+
+    // Validasi harga minimum jika ada
+    if (minPrice !== null && price < minPrice) {
+      setNegotiatedPrice(value);
+      setPriceError(`Harga nego minimum: Rp ${minPrice.toLocaleString()}`);
+      return;
+    }
+
+    setNegotiatedPrice(value);
+  };
+
   const handleAdd = () => {
     const negotiated = negotiatedPrice ? parseFloat(negotiatedPrice) : undefined;
+    
+    // Validasi harga minimum sebelum submit
+    if (negotiated !== undefined && minPrice !== null && negotiated < minPrice) {
+      setPriceError(`Harga nego minimum: Rp ${minPrice.toLocaleString()}`);
+      return;
+    }
+
+    // Validasi harga tidak boleh melebihi harga produk normal
+    if (negotiated !== undefined && negotiated > product.price) {
+      setPriceError(`Harga nego tidak boleh melebihi harga normal: Rp ${product.price.toLocaleString()}`);
+      return;
+    }
+
     const priceToUse = negotiated ?? product.price;
     const qtyToAdd = Math.min(quantity, maxStock || quantity);
 
@@ -159,14 +273,39 @@ export default function AddToCartModal({ product, onClose, onAdd }: AddToCartMod
           <div>
             <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">
               Harga Nego <span className="text-[10px] md:text-xs font-normal text-gray-500">(Opsional)</span>
+              {minPrice !== null && (
+                <span className="ml-1 text-[10px] md:text-xs font-normal text-blue-600">
+                  (Min: Rp {minPrice.toLocaleString()})
+                </span>
+              )}
+              <span className="ml-1 text-[10px] md:text-xs font-normal text-gray-500">
+                (Maks: Rp {product.price.toLocaleString()})
+              </span>
             </label>
             <input
               type="number"
               value={negotiatedPrice}
-              onChange={(e) => setNegotiatedPrice(e.target.value)}
+              onChange={(e) => handlePriceChange(e.target.value)}
+              onBlur={(e) => {
+                // Pastikan nilai tidak melebihi harga produk normal
+                const price = parseFloat(e.target.value);
+                if (!isNaN(price) && price > product.price) {
+                  setNegotiatedPrice(product.price.toString());
+                  setPriceError('');
+                }
+              }}
+              min={minPrice !== null ? minPrice : 0}
+              max={product.price}
               placeholder={`Default: Rp ${product.price.toLocaleString()}`}
-              className="w-full h-9 md:h-10 px-2.5 md:px-3 border-2 border-gray-200 rounded-lg text-xs md:text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-colors"
+              className={`w-full h-9 md:h-10 px-2.5 md:px-3 border-2 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 transition-colors ${
+                priceError
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20'
+              }`}
             />
+            {priceError && (
+              <p className="mt-1 text-[10px] md:text-xs text-red-600">{priceError}</p>
+            )}
           </div>
 
           {/* Catatan */}

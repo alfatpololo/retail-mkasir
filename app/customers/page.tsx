@@ -146,6 +146,7 @@ export default function CustomersPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwtPin}`,
         },
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -385,6 +386,7 @@ export default function CustomersPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwtPin}`,
         },
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -424,8 +426,8 @@ export default function CustomersPage() {
       // Create blob and download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      const timestamp = new Date().toISOString().split('T')[0];
-      const filename = `Data_Pelanggan_${timestamp}.csv`;
+      const fileDate = new Date().toISOString().split('T')[0];
+      const filename = `Data_Pelanggan_${fileDate}.csv`;
 
       link.href = URL.createObjectURL(blob);
       link.download = filename;
