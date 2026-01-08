@@ -152,8 +152,8 @@ export default function RegisterPage() {
     if (!(cleaned.startsWith('08') || cleaned.startsWith('62'))) {
       return 'No HP harus diawali dengan 08 atau 62';
     }
-    if (cleaned.length < 10 || cleaned.length > 13) {
-      return 'No HP harus memiliki 10-13 angka';
+    if (cleaned.length < 9) {
+      return 'No HP minimal 9 angka';
     }
     return '';
   };

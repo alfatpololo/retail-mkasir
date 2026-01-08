@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/utils/api';
 import { getBukakasId } from '@/utils/cashierSession';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 
 interface Expense {
   id: number;
@@ -33,10 +34,16 @@ interface Pagination {
 const DataPengeluaran = () => {
   const router = useRouter();
   
+  // Notification state
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+
   // Notification helpers
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    // Fallback to alert since stores module doesn't exist
-    alert(message);
+  const handleShowNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setShowNotification(true);
   };
 
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -75,6 +82,8 @@ const DataPengeluaran = () => {
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
   const itemsPerPage = 20;
 
@@ -328,7 +337,7 @@ const DataPengeluaran = () => {
       setIsLoading(false);
       
       const errorMessage = err instanceof Error ? err.message : 'Gagal memuat data pengeluaran';
-      showNotification(errorMessage, 'error');
+      handleShowNotification(errorMessage, 'error');
       setExpenses([]);
     }
   };
@@ -433,7 +442,7 @@ const DataPengeluaran = () => {
     try {
       // Validate form
       if (!validateForm()) {
-        showNotification('Mohon lengkapi semua field dengan benar', 'error');
+        handleShowNotification('Mohon lengkapi semua field dengan benar', 'error');
         return;
       }
 
@@ -501,7 +510,7 @@ const DataPengeluaran = () => {
         );
       }
 
-      showNotification(`Pengeluaran berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}!`, 'success');
+      handleShowNotification(`Pengeluaran berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}!`, 'success');
 
       setShowAddModal(false);
       setShowEditModal(false);
@@ -531,28 +540,26 @@ const DataPengeluaran = () => {
       
       setIsSaving(false);
       const errorMessage = err instanceof Error ? err.message : `Gagal ${isEdit ? 'mengupdate' : 'menambahkan'} pengeluaran`;
-      showNotification(errorMessage, 'error');
+      handleShowNotification(errorMessage, 'error');
     }
   };
 
-  const handleDeleteExpense = async (expense: Expense) => {
-    console.log('=== DELETE EXPENSE ===');
-    console.log('Expense:', expense);
-    
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus pengeluaran ini?`)) {
-      return;
-    }
-    
+  const handleDeleteClick = (expense: Expense) => {
+    setExpenseToDelete(expense);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!expenseToDelete) return;
+
     try {
       const jwtPin = getJwtPin();
       if (!jwtPin) {
         throw new Error('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
       }
 
-      console.log('Deleting expense ID:', expense.id);
-      
       const response = await fetch(
-        `${API_BASE_URL}/pengeluaran/${expense.id}`,
+        `${API_BASE_URL}/pengeluaran/${expenseToDelete.id}`,
         {
           method: 'DELETE',
           headers: {
@@ -569,9 +576,9 @@ const DataPengeluaran = () => {
         );
       }
       
-      console.log('Delete response: Success');
-      
-      showNotification('Pengeluaran berhasil dihapus!', 'success');
+      handleShowNotification('Pengeluaran berhasil dihapus!', 'success');
+      setShowDeleteConfirm(false);
+      setExpenseToDelete(null);
       
       // Refresh list
       if (currentPage === 1) {
@@ -587,7 +594,7 @@ const DataPengeluaran = () => {
       console.error('Error:', err);
       
       const errorMessage = err instanceof Error ? err.message : 'Gagal menghapus pengeluaran';
-      showNotification(errorMessage, 'error');
+      handleShowNotification(errorMessage, 'error');
     }
   };
 
@@ -704,7 +711,7 @@ const DataPengeluaran = () => {
       
       console.log('✅ Export successful');
       
-      showNotification(`Data pengeluaran berhasil diexport! (${allExpenses.length} data)`, 'success');
+      handleShowNotification(`Data pengeluaran berhasil diexport! (${allExpenses.length} data)`, 'success');
       
       setIsExporting(false);
       
@@ -715,7 +722,7 @@ const DataPengeluaran = () => {
       setIsExporting(false);
       
       const errorMessage = err instanceof Error ? err.message : 'Gagal export data pengeluaran';
-      showNotification(errorMessage, 'error');
+      handleShowNotification(errorMessage, 'error');
     }
   };
 
@@ -1042,7 +1049,7 @@ const DataPengeluaran = () => {
                           <button 
                             className="expense-icon-button"
                             style={styles.iconButton}
-                            onClick={() => handleDeleteExpense(expense)}
+                            onClick={() => handleDeleteClick(expense)}
                             title="Hapus"
                           >
                             <i className="ri-delete-bin-line" style={{ fontSize: '16px', color: '#EF4444' }}></i>
@@ -1585,6 +1592,56 @@ const DataPengeluaran = () => {
       )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <i className="ri-error-warning-line text-2xl text-red-600"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Konfirmasi Hapus</h3>
+                  <p className="text-sm text-gray-500 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">
+                Apakah Anda yakin ingin menghapus pengeluaran ini?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setExpenseToDelete(null);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium active:bg-gray-200 sm:hover:bg-gray-200 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium active:bg-red-700 sm:hover:bg-red-700 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 };

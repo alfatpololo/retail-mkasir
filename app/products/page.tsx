@@ -3,7 +3,9 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import EditProductModal from '@/components/EditProductModal';
+import ToastNotification from '@/components/ToastNotification';
 import { API_BASE_URL } from '@/utils/api';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface ApiProductCategory {
   id: number;
@@ -133,6 +135,11 @@ export default function ProductsPage() {
   const [productQtyRows, setProductQtyRows] = useState<
     { qty: string; harga_jual: string; harga_minimum: string; operator: string }[]
   >([{ qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' }]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
 
   // State & ref untuk scanner barcode sederhana (kamera)
   const [showScanner, setShowScanner] = useState(false);
@@ -253,6 +260,9 @@ export default function ProductsPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal memuat produk';
       setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -407,24 +417,31 @@ export default function ProductsPage() {
     };
   }, [showScanner]);
 
-  const handleDeleteProduct = async (productId: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
-      return;
-    }
+  const handleDeleteClick = (productId: number) => {
+    setProductToDelete(productId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
 
     try {
-      setDeletingProductId(productId);
+      setDeletingProductId(productToDelete);
       const jwtPin =
         typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
 
       if (!jwtPin) {
-        setError('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
+        setNotificationMessage('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
+        setNotificationType('error');
+        setShowNotification(true);
         setDeletingProductId(null);
+        setShowDeleteConfirm(false);
+        setProductToDelete(null);
         return;
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/master/products/${productId}`,
+        `${API_BASE_URL}/master/products/${productToDelete}`,
         {
           method: 'DELETE',
           headers: {
@@ -440,9 +457,16 @@ export default function ProductsPage() {
       }
 
       await fetchProducts(page, searchQuery);
+      setShowDeleteConfirm(false);
+      setProductToDelete(null);
+      setNotificationMessage('Produk berhasil dihapus');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menghapus produk';
-      setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setDeletingProductId(null);
     }
@@ -567,9 +591,15 @@ export default function ProductsPage() {
       await fetchProducts(page, searchQuery);
 
       setEditingProduct(null);
+      setNotificationMessage('Produk berhasil diperbarui');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal mengupdate produk';
       setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -684,9 +714,15 @@ export default function ProductsPage() {
       });
       setCategorySearch('');
       setProductQtyRows([{ qty: '', harga_jual: '', harga_minimum: '', operator: 'equals' }]);
+      setNotificationMessage('Produk berhasil ditambahkan');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan produk';
       setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -801,13 +837,15 @@ export default function ProductsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
-          >
-            <i className="ri-add-line text-base sm:text-lg"></i>
-            Input Produk
-          </button>
+          {hasPermission(PERMISSIONS.PRODUCT_CREATE) && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
+            >
+              <i className="ri-add-line text-base sm:text-lg"></i>
+              Input Produk
+            </button>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200/50 overflow-hidden">
@@ -916,24 +954,31 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex gap-2">
-                        <button 
-                          onClick={() => setEditingProduct(product)}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors cursor-pointer"
-                        >
-                          <i className="ri-edit-line text-base"></i>
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProduct(product.id)}
-                          disabled={deletingProductId === product.id}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Hapus produk"
-                        >
-                          {deletingProductId === product.id ? (
-                            <i className="ri-loader-4-line text-base animate-spin"></i>
-                          ) : (
-                            <i className="ri-delete-bin-line text-base"></i>
-                          )}
-                        </button>
+                        {hasPermission(PERMISSIONS.PRODUCT_UPDATE) && (
+                          <button 
+                            onClick={() => setEditingProduct(product)}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-emerald-50 text-emerald-600 transition-colors cursor-pointer"
+                          >
+                            <i className="ri-edit-line text-base"></i>
+                          </button>
+                        )}
+                        {hasPermission(PERMISSIONS.PRODUCT_DELETE) && (
+                          <button 
+                            onClick={() => handleDeleteClick(product.id)}
+                            disabled={deletingProductId === product.id}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Hapus produk"
+                          >
+                            {deletingProductId === product.id ? (
+                              <i className="ri-loader-4-line text-base animate-spin"></i>
+                            ) : (
+                              <i className="ri-delete-bin-line text-base"></i>
+                            )}
+                          </button>
+                        )}
+                        {!hasPermission(PERMISSIONS.PRODUCT_UPDATE) && !hasPermission(PERMISSIONS.PRODUCT_DELETE) && (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1529,6 +1574,58 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <i className="ri-error-warning-line text-2xl text-red-600"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Konfirmasi Hapus</h3>
+                  <p className="text-sm text-gray-500 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">
+                Apakah Anda yakin ingin menghapus produk ini?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setProductToDelete(null);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium active:bg-gray-200 sm:hover:bg-gray-200 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  disabled={deletingProductId !== null}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium active:bg-red-700 sm:hover:bg-red-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+                >
+                  {deletingProductId !== null ? 'Menghapus...' : 'Hapus'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }

@@ -10,6 +10,60 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 /**
+ * Interface untuk konfigurasi fetch API
+ */
+interface FetchApiOptions extends RequestInit {
+  jwt?: string;
+  body?: any;
+}
+
+/**
+ * Helper function untuk melakukan fetch API dengan error handling yang konsisten
+ */
+async function fetchApi<T>(
+  endpoint: string,
+  options: FetchApiOptions = {}
+): Promise<T> {
+  const { jwt, body, headers: customHeaders, ...fetchOptions } = options;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(customHeaders as Record<string, string>),
+  };
+
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...fetchOptions,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { message?: string })?.message ||
+        `HTTP error! status: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Helper function untuk menangani error dengan pesan yang konsisten
+ */
+function handleApiError(error: unknown, defaultMessage: string): never {
+  if (error instanceof Error) {
+    throw error;
+  }
+  throw new Error(defaultMessage);
+}
+
+/**
  * Interface untuk request login
  */
 export interface LoginRequest {
@@ -134,27 +188,12 @@ export interface LoginPinResponse {
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/login`, {
+    return await fetchApi<LoginResponse>('/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      body: credentials,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: LoginResponse = await response.json();
-    return data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat melakukan login');
+    handleApiError(error, 'Terjadi kesalahan saat melakukan login');
   }
 }
 
@@ -163,34 +202,22 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  */
 export async function getUserStall(jwt: string): Promise<UserStallResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/user-stall`, {
+    return await fetchApi<UserStallResponse>('/user-stall', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: UserStallResponse = await response.json();
-    return data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat mengambil data users');
+    handleApiError(error, 'Terjadi kesalahan saat mengambil data users');
   }
 }
 
 /**
  * Fungsi untuk login dengan PIN
  */
-export async function loginPin(credentials: LoginPinRequest, jwt: string): Promise<LoginPinResponse> {
+export async function loginPin(
+  credentials: LoginPinRequest,
+  jwt: string
+): Promise<LoginPinResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/login-pin`, {
       method: 'POST',
@@ -199,29 +226,29 @@ export async function loginPin(credentials: LoginPinRequest, jwt: string): Promi
         'Authorization': `Bearer ${jwt}`,
       },
       body: JSON.stringify(credentials),
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      cache: 'no-store',
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      throw new Error(
+        (errorData as { message?: string })?.message ||
+          `HTTP error! status: ${response.status}`
+      );
     }
 
     const data: LoginPinResponse = await response.json();
-    
+
     // Ambil JWT dari header Authorization atau dari field data.data (encrypted JWT)
     const authHeader = response.headers.get('Authorization');
     const jwtPin = authHeader?.replace('Bearer ', '') || data.data.data;
-    
+
     return {
       ...data,
       jwt: jwtPin,
     };
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat verifikasi PIN');
+    handleApiError(error, 'Terjadi kesalahan saat verifikasi PIN');
   }
 }
 
@@ -235,6 +262,8 @@ export interface ReceiptSettings {
   footerNote: string;
   paperSize: string;
   printer: string;
+  autoPrint?: boolean;
+  showLogo?: boolean;
 }
 
 /**
@@ -249,59 +278,77 @@ export interface SettingsResponse {
 /**
  * Fungsi untuk mengambil pengaturan struk dari API
  */
-export async function getReceiptSettings(jwt: string): Promise<SettingsResponse> {
+export async function getReceiptSettings(
+  jwt: string
+): Promise<SettingsResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/settings/receipt`, {
+    return await fetchApi<SettingsResponse>('/settings/receipt', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: SettingsResponse = await response.json();
-    return data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat mengambil pengaturan struk');
+    handleApiError(error, 'Terjadi kesalahan saat mengambil pengaturan struk');
   }
 }
 
 /**
  * Fungsi untuk menyimpan pengaturan struk ke API
  */
-export async function saveReceiptSettings(settings: ReceiptSettings, jwt: string): Promise<SettingsResponse> {
+export async function saveReceiptSettings(
+  settings: ReceiptSettings,
+  jwt: string
+): Promise<SettingsResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/settings/receipt`, {
+    return await fetchApi<SettingsResponse>('/settings/receipt', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      body: JSON.stringify(settings),
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
+      body: settings,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: SettingsResponse = await response.json();
-    return data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat menyimpan pengaturan struk');
+    handleApiError(error, 'Terjadi kesalahan saat menyimpan pengaturan struk');
+  }
+}
+
+/**
+ * Interface untuk payload update printer
+ */
+export interface UpdatePrinterPayload {
+  nama: string;
+  alamat: string;
+  notelp: string;
+  receipt_footer_text: string;
+  paper_size: string;
+  auto_print: number; // 1 atau 0
+  show_logo_on_receipt: number; // 1 atau 0
+}
+
+/**
+ * Interface untuk response update printer
+ */
+export interface UpdatePrinterResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+/**
+ * PUT /api/v1/master/stall/update_printer - Update pengaturan printer/struk
+ */
+export async function updatePrinterSettings(
+  payload: UpdatePrinterPayload,
+  jwt: string
+): Promise<UpdatePrinterResponse> {
+  try {
+    return await fetchApi<UpdatePrinterResponse>(
+      '/master/stall/update_printer',
+      {
+        method: 'PUT',
+        jwt,
+        body: payload,
+      }
+    );
+  } catch (error) {
+    handleApiError(error, 'Terjadi kesalahan saat menyimpan pengaturan printer');
   }
 }
 
@@ -360,29 +407,18 @@ function normalizePhone(phone: string): string {
 /**
  * GET /user-tenant/{id} - Get employee by ID
  */
-export async function getEmployeeById(id: number, jwt: string): Promise<Employee> {
+export async function getEmployeeById(
+  id: number,
+  jwt: string
+): Promise<Employee> {
   try {
-    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+    const data = await fetchApi<EmployeeResponse>(`/user-tenant/${id}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: EmployeeResponse = await response.json();
     return data.data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat mengambil data karyawan');
+    handleApiError(error, 'Terjadi kesalahan saat mengambil data karyawan');
   }
 }
 
@@ -419,28 +455,14 @@ export async function createEmployee(
       body.pin = employee.pin;
     }
 
-    const response = await fetch(`${API_BASE_URL}/user-tenant`, {
+    const data = await fetchApi<EmployeeResponse>('/user-tenant', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
+      body,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: EmployeeResponse = await response.json();
     return data.data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat menambahkan karyawan');
+    handleApiError(error, 'Terjadi kesalahan saat menambahkan karyawan');
   }
 }
 
@@ -492,28 +514,14 @@ export async function updateEmployee(
       body.status = employee.status;
     }
 
-    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+    const data = await fetchApi<EmployeeResponse>(`/user-tenant/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
+      body,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const data: EmployeeResponse = await response.json();
     return data.data;
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Terjadi kesalahan saat memperbarui karyawan');
+    handleApiError(error, 'Terjadi kesalahan saat memperbarui karyawan');
   }
 }
 
@@ -522,24 +530,109 @@ export async function updateEmployee(
  */
 export async function deleteEmployee(id: number, jwt: string): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
+    await fetchApi(`/user-tenant/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${jwt}`,
-      },
-      cache: 'no-store', // Pastikan selalu fetch data terbaru, tidak menggunakan cache
+      jwt,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
+    handleApiError(error, 'Terjadi kesalahan saat menghapus karyawan');
+  }
+}
+
+/**
+ * Interface untuk request update PIN
+ */
+export interface UpdatePinRequest {
+  pin_saat_ini: string;
+  pin_baru: string;
+  pin_baru_ulangi: string;
+}
+
+/**
+ * Interface untuk response update PIN
+ */
+export interface UpdatePinResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+/**
+ * PUT /update-pin - Update PIN user
+ */
+export async function updatePin(
+  pinData: UpdatePinRequest,
+  jwt: string
+): Promise<UpdatePinResponse> {
+  try {
+    // Validasi PIN
+    if (pinData.pin_saat_ini.length !== 6) {
+      throw new Error('PIN saat ini harus 6 digit');
     }
-    throw new Error('Terjadi kesalahan saat menghapus karyawan');
+    if (pinData.pin_baru.length !== 6) {
+      throw new Error('PIN baru harus 6 digit');
+    }
+    if (pinData.pin_baru !== pinData.pin_baru_ulangi) {
+      throw new Error('PIN baru dan ulangi PIN tidak cocok');
+    }
+
+    return await fetchApi<UpdatePinResponse>('/update-pin', {
+      method: 'PUT',
+      jwt,
+      body: pinData,
+    });
+  } catch (error) {
+    handleApiError(error, 'Terjadi kesalahan saat memperbarui PIN');
+  }
+}
+
+/**
+ * Interface untuk request update password
+ */
+export interface UpdatePasswordRequest {
+  password_saat_ini: string;
+  password_baru: string;
+  password_baru_ulangi: string;
+}
+
+/**
+ * Interface untuk response update password
+ */
+export interface UpdatePasswordResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+/**
+ * PUT /update-password-stall - Update password stall
+ */
+export async function updatePassword(
+  passwordData: UpdatePasswordRequest,
+  jwt: string
+): Promise<UpdatePasswordResponse> {
+  try {
+    // Validasi password
+    if (!passwordData.password_saat_ini) {
+      throw new Error('Password saat ini harus diisi');
+    }
+    if (!passwordData.password_baru) {
+      throw new Error('Password baru harus diisi');
+    }
+    if (passwordData.password_baru.length < 8) {
+      throw new Error('Password baru minimal 8 karakter');
+    }
+    if (passwordData.password_baru !== passwordData.password_baru_ulangi) {
+      throw new Error('Password baru dan ulangi password tidak cocok');
+    }
+
+    return await fetchApi<UpdatePasswordResponse>('/update-password-stall', {
+      method: 'PUT',
+      jwt,
+      body: passwordData,
+    });
+  } catch (error) {
+    handleApiError(error, 'Terjadi kesalahan saat memperbarui password');
   }
 }
 

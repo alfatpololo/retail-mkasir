@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { logoutUser } from '@/utils/storage';
 
 type ProfileView = {
   cashierName: string;
@@ -23,6 +25,7 @@ const DEFAULT_PROFILE: ProfileView = {
 };
 
 export default function ProfileDetailPage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<ProfileView>(DEFAULT_PROFILE);
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
@@ -90,6 +93,16 @@ export default function ProfileDetailPage() {
   }, []);
 
   const showHeaderLevel = Boolean(profile.cashierLevel);
+  
+  // Check if user is admin
+  const isAdmin = profile.cashierLevel?.toLowerCase().trim() === 'admin';
+
+  const handleLogout = () => {
+    // Hapus semua session/storage terkait user & kasir
+    logoutUser();
+    // Redirect ke halaman login
+    router.push('/login');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-emerald-50/30 relative">
@@ -268,11 +281,19 @@ export default function ProfileDetailPage() {
                 description="Catat dan pantau pengeluaran operasional"
                 href="/expenses"
               />
+              {isAdmin && (
+                <MenuTile
+                  icon="ri-lock-password-line"
+                  title="Ganti Kata Sandi"
+                  description="Perbarui kata sandi akun kasir"
+                  href="/change-password"
+                />
+              )}
               <MenuTile
-                icon="ri-lock-password-line"
-                title="Ganti Kata Sandi"
-                description="Perbarui kata sandi akun kasir"
-                href="/change-password"
+                icon="ri-shield-keyhole-line"
+                title="Ganti PIN"
+                description="Perbarui PIN untuk login kasir"
+                href="/change-pin"
               />
               <MenuTile
                 icon="ri-delete-bin-6-line"
@@ -280,6 +301,14 @@ export default function ProfileDetailPage() {
                 description="Nonaktifkan akun dan hentikan akses"
                 href="/close-account"
                 isDanger
+              />
+              <MenuTile
+                icon="ri-logout-box-line"
+                title="Logout"
+                description="Keluar dari akun dan kembali ke halaman login"
+                href="#"
+                isDanger
+                onClick={handleLogout}
               />
             </div>
           </div>
@@ -317,18 +346,12 @@ function MenuTile(props: {
   description: string;
   href: string;
   isDanger?: boolean;
+  onClick?: () => void;
 }) {
-  const { icon, title, description, href, isDanger } = props;
+  const { icon, title, description, href, isDanger, onClick } = props;
 
-  return (
-    <Link
-      href={href}
-      className={`flex flex-col gap-3 p-5 rounded-2xl border-2 transition-all cursor-pointer group ${
-        isDanger
-          ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200 text-red-700 hover:shadow-lg'
-          : 'border-gray-200 bg-gradient-to-br from-gray-50 to-white hover:border-emerald-300 hover:from-emerald-50 hover:to-emerald-100/50 text-gray-800 hover:shadow-lg'
-      }`}
-    >
+  const content = (
+    <>
       <div className="flex items-center justify-between">
         <div
           className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform ${
@@ -343,6 +366,34 @@ function MenuTile(props: {
         <p className="font-bold text-base mb-1">{title}</p>
         <p className="text-xs text-gray-600 leading-relaxed">{description}</p>
       </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`flex flex-col gap-3 p-5 rounded-2xl border-2 transition-all cursor-pointer group w-full text-left ${
+          isDanger
+            ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200 text-red-700 hover:shadow-lg'
+            : 'border-gray-200 bg-gradient-to-br from-gray-50 to-white hover:border-emerald-300 hover:from-emerald-50 hover:to-emerald-100/50 text-gray-800 hover:shadow-lg'
+        }`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={`flex flex-col gap-3 p-5 rounded-2xl border-2 transition-all cursor-pointer group ${
+        isDanger
+          ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200 text-red-700 hover:shadow-lg'
+          : 'border-gray-200 bg-gradient-to-br from-gray-50 to-white hover:border-emerald-300 hover:from-emerald-50 hover:to-emerald-100/50 text-gray-800 hover:shadow-lg'
+      }`}
+    >
+      {content}
     </Link>
   );
 }

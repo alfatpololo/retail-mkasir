@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logoutUser } from '@/utils/storage';
 import { useState, useEffect } from 'react';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface SubMenuItem {
   label: string;
@@ -46,7 +47,7 @@ const sections: MenuSection[] = [
       },
       {
         icon: 'ri-exchange-dollar-line',
-        label: 'Piutang',
+        label: 'Hutang',
         path: '/debts',
       },
     ],
@@ -132,6 +133,14 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
 
   // STATE UNTUK SUBMENU
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  
+  // STATE UNTUK MENCEGAH HYDRATION MISMATCH
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set mounted state setelah component mount di client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close submenu when route changes
   useEffect(() => {
@@ -157,6 +166,94 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
     logoutUser();
     // Redirect ke halaman login
     router.push('/login');
+  };
+
+  // Helper function untuk mengecek apakah menu item harus ditampilkan berdasarkan permission
+  const shouldShowMenuItem = (path: string, submenu?: SubMenuItem[]): boolean => {
+    // POS selalu ditampilkan
+    if (path === '/') return true;
+    
+    // Profile menu selalu ditampilkan
+    if (path.startsWith('/profile') || path.startsWith('/close-cashier')) return true;
+    
+    // Settings selalu ditampilkan
+    if (path.startsWith('/settings')) {
+      return true; // Settings bisa diakses semua user
+    }
+    
+    // Jika belum mounted, tampilkan semua menu untuk menghindari hydration mismatch
+    // Permission check hanya dilakukan di client setelah mount
+    if (!isMounted) {
+      return true;
+    }
+    
+    // Cek permission berdasarkan path (hanya di client)
+    if (path === '/products' || path === '/categories') {
+      return hasPermission(PERMISSIONS.PRODUCT_VIEW) || hasPermission(PERMISSIONS.CATEGORY_VIEW);
+    }
+    
+    if (path === '/customers') {
+      return hasPermission(PERMISSIONS.CUSTOMER_VIEW);
+    }
+    
+    if (path.startsWith('/transactions')) {
+      return hasPermission(PERMISSIONS.TRANSACTION_VIEW);
+    }
+    
+    if (path === '/reports' || path.startsWith('/payment-summary') || path.startsWith('/bestseller-products') || path.startsWith('/customer-report') || path.startsWith('/cashier-report')) {
+      return hasPermission(PERMISSIONS.REPORT_SALES) || hasPermission(PERMISSIONS.REPORT_PROFIT) || hasPermission(PERMISSIONS.REPORT_CASHIER) || hasPermission(PERMISSIONS.REPORT_INVENTORY);
+    }
+    
+    if (path === '/restock' || path.startsWith('/stock-history') || path.startsWith('/stock-opname') || path.startsWith('/stock-conversion')) {
+      return hasPermission(PERMISSIONS.STOCK_PURCHASE) || hasPermission(PERMISSIONS.STOCK_HISTORY) || hasPermission(PERMISSIONS.STOCK_OPNAME) || hasPermission(PERMISSIONS.STOCK_MANAGE);
+    }
+    
+    if (path.startsWith('/employees')) {
+      return hasPermission(PERMISSIONS.USER_VIEW);
+    }
+    
+    // Default: tampilkan jika tidak ada pengecekan khusus
+    return true;
+  };
+
+  // Helper function untuk mengecek apakah submenu item harus ditampilkan
+  const shouldShowSubmenuItem = (subPath: string): boolean => {
+    // Jika belum mounted, tampilkan semua submenu untuk menghindari hydration mismatch
+    if (!isMounted) {
+      return true;
+    }
+    
+    if (subPath === '/products') {
+      return hasPermission(PERMISSIONS.PRODUCT_VIEW);
+    }
+    if (subPath === '/categories') {
+      return hasPermission(PERMISSIONS.CATEGORY_VIEW);
+    }
+    if (subPath === '/reports') {
+      return hasPermission(PERMISSIONS.REPORT_SALES);
+    }
+    if (subPath === '/payment-summary') {
+      return hasPermission(PERMISSIONS.REPORT_PROFIT);
+    }
+    if (subPath === '/bestseller-products') {
+      return hasPermission(PERMISSIONS.REPORT_INVENTORY);
+    }
+    if (subPath === '/cashier-report') {
+      return hasPermission(PERMISSIONS.REPORT_CASHIER) || hasPermission(PERMISSIONS.CASHIER_REPORT);
+    }
+    if (subPath === '/restock') {
+      return hasPermission(PERMISSIONS.STOCK_PURCHASE);
+    }
+    if (subPath === '/stock-history') {
+      return hasPermission(PERMISSIONS.STOCK_HISTORY);
+    }
+    if (subPath === '/stock-opname') {
+      return hasPermission(PERMISSIONS.STOCK_OPNAME);
+    }
+    if (subPath === '/stock-conversion') {
+      return hasPermission(PERMISSIONS.STOCK_MANAGE);
+    }
+    return true;
   };
 
   return (
@@ -186,6 +283,11 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
             </p>
             <div className="space-y-1">
               {section.items.map((item) => {
+                // Cek apakah menu item harus ditampilkan
+                if (!shouldShowMenuItem(item.path, item.submenu)) {
+                  return null;
+                }
+
                 const hasSubmenu = item.submenu && item.submenu.length > 0;
                 const isSubmenuActive = hasSubmenu
                   ? item.submenu?.some((sub) => isActive(sub.path))
@@ -235,7 +337,7 @@ export default function Sidebar({ isOverlay = false }: SidebarProps) {
                           }`}
                         >
                           <div className="pl-6 md:pl-8 space-y-1">
-                            {item.submenu?.map((sub) => (
+                            {item.submenu?.filter(sub => shouldShowSubmenuItem(sub.path)).map((sub) => (
                               <Link
                                 key={sub.path}
                                 href={sub.path}

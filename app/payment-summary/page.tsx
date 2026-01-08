@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 import { API_BASE_URL } from '@/utils/api';
 import { getBukakasId } from '@/utils/cashierSession';
 
@@ -84,6 +85,9 @@ export default function PaymentSummaryPage() {
   const [distribution, setDistribution] = useState<ApiDistributionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('error');
 
   const fetchPaymentSummary = async () => {
     try {
@@ -196,8 +200,9 @@ export default function PaymentSummaryPage() {
   };
 
   const handleExport = () => {
-    // Sementara hanya alert, nanti bisa diganti export CSV/Excel
-    alert('Fitur export belum diimplementasikan. Silakan integrasikan dengan export CSV/Excel.');
+    setNotificationMessage('Fitur export belum diimplementasikan. Silakan integrasikan dengan export CSV/Excel.');
+    setNotificationType('error');
+    setShowNotification(true);
   };
 
   return (
@@ -465,6 +470,14 @@ export default function PaymentSummaryPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }

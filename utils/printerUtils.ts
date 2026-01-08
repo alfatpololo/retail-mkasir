@@ -63,6 +63,10 @@ export interface ReceiptData {
   cashierName?: string;
   /** Jika true, sembunyikan blok pembayaran (Bayar/Metode/Kembali) */
   skipPaymentSection?: boolean;
+  /** Ukuran kertas: '58mm' atau '80mm' */
+  paperSize?: '58mm' | '80mm';
+  /** Jika true, tampilkan logo pada struk */
+  showLogo?: boolean;
 }
 
 export interface CloseCashierReceiptData {
@@ -103,8 +107,10 @@ export function generateReceiptESC_POS(data: ReceiptData): Uint8Array {
   const encoder = new TextEncoder();
   const commands: number[] = [];
 
-  // Lebar struk untuk kertas 58mm (umum 32 karakter monospaced)
-  const RECEIPT_WIDTH = 32;
+  // Lebar struk berdasarkan ukuran kertas
+  // 58mm = 32 karakter, 80mm = 48 karakter
+  const paperSize = data.paperSize || '58mm';
+  const RECEIPT_WIDTH = paperSize === '80mm' ? 48 : 32;
 
   const formatAmount = (value: number | undefined | null): string => {
     const num =
@@ -594,9 +600,14 @@ export async function reconnectUSBDevice(): Promise<USBDevice | null> {
 }
 
 // Fungsi untuk mengirim data ke printer USB
-export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Promise<void> {
+export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array, retryCount: number = 0): Promise<void> {
   if (!device || typeof device !== 'object') {
     throw new Error('Device USB tidak tersedia. Pastikan printer sudah terhubung.');
+  }
+
+  // Batasi retry maksimal 2 kali untuk mencegah infinite loop
+  if (retryCount > 2) {
+    throw new Error('Gagal mengirim data ke printer setelah beberapa kali percobaan. Pastikan printer terhubung dengan benar.');
   }
 
   // Pastikan device sudah terbuka
@@ -604,35 +615,60 @@ export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Pro
     try {
       await device.open();
       await device.selectConfiguration(1);
-      await device.claimInterface(0);
     } catch (error) {
+      // Jika gagal membuka, coba reconnect hanya jika belum pernah retry
+      if (retryCount === 0) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn('Gagal membuka device, mencoba reconnect:', errorMessage);
+        
+        // Coba reconnect
+        const reconnectedDevice = await reconnectUSBDevice();
+        if (reconnectedDevice) {
+          // Gunakan device yang baru di-reconnect dengan retry count + 1
+          return sendToUSBPrinter(reconnectedDevice, data, retryCount + 1);
+        }
+      }
+      
+      // Jika reconnect gagal atau sudah retry, throw error
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Gagal membuka koneksi ke printer: ${errorMessage}`);
     }
   }
 
-  // Cari endpoint OUT yang benar
+  // Cari endpoint OUT yang benar dan claim interface dengan benar
   let endpointNumber: number | null = null;
+  let claimedInterfaceNumber: number | null = null;
 
   try {
     const configuration = device.configuration;
     if (configuration) {
       const interfaces = configuration.interfaces;
       for (const iface of interfaces) {
-        // Pastikan interface sudah di-claim
-        if (!iface.claimed) {
-          try {
-            await device.claimInterface(iface.interfaceNumber);
-          } catch (e) {
-            // Interface mungkin sudah di-claim, lanjutkan
-          }
-        }
-
+        // Cari alternate yang memiliki endpoint OUT bulk
         for (const alt of iface.alternates || []) {
           for (const endpoint of alt.endpoints) {
             if (endpoint.direction === 'out' && endpoint.type === 'bulk') {
-              endpointNumber = endpoint.endpointNumber;
-              break;
+              // Pastikan interface di-claim sebelum menggunakan endpoint
+              try {
+                if (!iface.claimed) {
+                  await device.claimInterface(iface.interfaceNumber);
+                }
+                // Set alternate interface jika diperlukan (biasanya alternate 0)
+                if (alt !== iface.alternate && alt.interfaceNumber !== undefined) {
+                  try {
+                    await device.selectAlternateInterface(iface.interfaceNumber, alt.interfaceNumber);
+                  } catch (altError) {
+                    // Alternate mungkin sudah dipilih, lanjutkan
+                    console.warn('Gagal select alternate interface:', altError);
+                  }
+                }
+                endpointNumber = endpoint.endpointNumber;
+                claimedInterfaceNumber = iface.interfaceNumber;
+                break;
+              } catch (claimError) {
+                console.warn(`Gagal claim interface ${iface.interfaceNumber}, coba interface berikutnya:`, claimError);
+                continue;
+              }
             }
           }
           if (endpointNumber !== null) break;
@@ -645,25 +681,79 @@ export async function sendToUSBPrinter(device: USBDevice, data: Uint8Array): Pro
     console.warn('Gagal mencari endpoint, menggunakan default:', e);
   }
 
-  // Jika tidak ditemukan, coba endpoint 1 atau 2 (umum untuk printer ESC/POS)
+  // Jika tidak ditemukan, coba interface 0 dengan endpoint 1 atau 2 (umum untuk printer ESC/POS)
   if (endpointNumber === null) {
-    endpointNumber = 1;
+    try {
+      // Coba claim interface 0 jika belum di-claim
+      try {
+        await device.claimInterface(0);
+        claimedInterfaceNumber = 0;
+      } catch (e) {
+        // Interface mungkin sudah di-claim, lanjutkan
+      }
+      // Coba endpoint 1 dulu
+      endpointNumber = 1;
+    } catch (e) {
+      console.warn('Gagal setup default endpoint:', e);
+    }
+  }
+
+  // Pastikan endpointNumber valid sebelum transfer
+  if (endpointNumber === null) {
+    throw new Error('Tidak dapat menemukan endpoint yang valid untuk printer. Pastikan printer terhubung dengan benar.');
+  }
+
+  // Pastikan interface sudah di-claim sebelum transfer
+  if (claimedInterfaceNumber === null) {
+    try {
+      await device.claimInterface(0);
+      claimedInterfaceNumber = 0;
+    } catch (e) {
+      // Interface mungkin sudah di-claim, lanjutkan
+    }
   }
 
   // Kirim data ke printer
   try {
     await device.transferOut(endpointNumber, data);
   } catch (error) {
-    // Jika endpoint pertama gagal, coba endpoint 2
-    if (endpointNumber === 1) {
-      try {
-        await device.transferOut(2, data);
-      } catch (err2) {
-        throw new Error(`Gagal mengirim data ke printer. Pastikan printer terhubung dengan benar. Error: ${err2}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Jika error terkait endpoint/interface, coba reconnect
+    if (errorMessage.includes('endpoint') || errorMessage.includes('interface') || errorMessage.includes('claimed')) {
+      // Jika belum pernah retry, coba reconnect sekali
+      if (retryCount === 0) {
+        console.warn('Transfer gagal karena masalah endpoint/interface, mencoba reconnect:', errorMessage);
+        const reconnectedDevice = await reconnectUSBDevice();
+        if (reconnectedDevice) {
+          // Coba kirim lagi dengan device yang baru dengan retry count + 1
+          return sendToUSBPrinter(reconnectedDevice, data, retryCount + 1);
+        }
       }
-    } else {
-      throw new Error(`Gagal mengirim data ke printer. Pastikan printer terhubung dengan benar. Error: ${error}`);
     }
+    
+    // Jika endpoint pertama gagal dan belum pernah retry, coba endpoint alternatif
+    if (retryCount === 0 && endpointNumber === 1) {
+      try {
+        // Pastikan interface 0 sudah di-claim
+        try {
+          await device.claimInterface(0);
+        } catch (e) {
+          // Interface mungkin sudah di-claim
+        }
+        await device.transferOut(2, data);
+        return; // Berhasil dengan endpoint 2
+      } catch (err2) {
+        // Jika endpoint 2 juga gagal, coba reconnect
+        console.warn('Transfer ke endpoint 2 juga gagal, mencoba reconnect:', err2);
+        const reconnectedDevice = await reconnectUSBDevice();
+        if (reconnectedDevice) {
+          return sendToUSBPrinter(reconnectedDevice, data, retryCount + 1);
+        }
+      }
+    }
+    
+    throw new Error(`Gagal mengirim data ke printer. Pastikan printer terhubung dengan benar. Error: ${errorMessage}`);
   }
 }
 

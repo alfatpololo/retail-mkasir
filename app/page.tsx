@@ -170,6 +170,7 @@ export default function POSPage() {
   const mobileSearchRef = useRef<HTMLInputElement | null>(null);
   const desktopSearchRef = useRef<HTMLInputElement | null>(null);
   const isInitialMount = useRef(true); // Track initial mount untuk mencegah double fetch
+  const transactionDataRef = useRef<typeof transactionData>(null); // Ref untuk menyimpan data transaksi terbaru
   
   useEffect(() => {
     // Cek apakah user sudah login dan PIN sudah diverifikasi
@@ -397,6 +398,7 @@ export default function POSPage() {
   const [jatuhTempo, setJatuhTempo] = useState(''); // format: YYYY-MM-DD
   const [manualCustomerName, setManualCustomerName] = useState('');
   const [manualCustomerPhone, setManualCustomerPhone] = useState('');
+  const [manualCustomerPhoneError, setManualCustomerPhoneError] = useState<string>('');
   const [showCart, setShowCart] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
@@ -929,6 +931,24 @@ export default function POSPage() {
         return;
       }
 
+      // Validasi nomor HP jika diisi
+      if (manualCustomerPhone) {
+        const cleaned = manualCustomerPhone.replace(/\D/g, '');
+        if (!(cleaned.startsWith('08') || cleaned.startsWith('62'))) {
+          setTransactionError('Nomor HP harus diawali dengan 08 atau 62');
+          setManualCustomerPhoneError('Nomor HP harus diawali dengan 08 atau 62');
+          setProcessingTransaction(false);
+          return;
+        }
+        if (cleaned.length < 9) {
+          setTransactionError('Nomor HP minimal 9 angka');
+          setManualCustomerPhoneError('Nomor HP minimal 9 angka');
+          setProcessingTransaction(false);
+          return;
+        }
+      }
+      setManualCustomerPhoneError('');
+
       // Validasi jika cash dan tidak piutang, jumlah bayar harus >= total
       const parsedPaidAmount = parseCurrencyInput(paidAmount);
       if (!isDebt && payMethod === 'cash' && parsedPaidAmount < total) {
@@ -1060,7 +1080,7 @@ export default function POSPage() {
       // Set transaction data untuk modal sukses & struk
       const transactionId =
         json.data?.nomor_transaksi || json.data?.id || `TRX${Date.now()}`;
-      setTransactionData({
+      const newTransactionData = {
         id: transactionId,
         total,
         paid: finalPaidAmount,
@@ -1069,7 +1089,9 @@ export default function POSPage() {
         customerName,
         isDebt,
         items: itemsForReceipt,
-      });
+      };
+      setTransactionData(newTransactionData);
+      transactionDataRef.current = newTransactionData; // Simpan ke ref untuk akses dalam setTimeout
 
     // Close payment modal and show success modal
     setShowPayModal(false);
@@ -1090,15 +1112,20 @@ export default function POSPage() {
   };
 
   const handleCloseSuccessModal = async () => {
-    // Cek auto_print, jika 1 maka auto print dulu
-    const autoPrint = typeof window !== 'undefined' 
-      ? localStorage.getItem('auto_print') || '0'
-      : '0';
+    // Cek auto_print sebelum reset data, jika enabled maka otomatis print
+    const { isAutoPrintEnabled } = await import('@/utils/printerSettings');
+    const dataToPrint = transactionData || transactionDataRef.current;
     
-    if (autoPrint === '1') {
-      await handlePrintReceipt();
+    if (isAutoPrintEnabled() && dataToPrint) {
+      try {
+        // Simpan data ke transactionData sementara untuk print
+        setTransactionData(dataToPrint);
+        await handlePrintReceipt();
+      } catch (err) {
+        console.warn('Auto print saat tutup modal gagal:', err);
+      }
     }
-
+    
     setShowSuccessModal(false);
     setCartItems([]);
     setShowCart(false);
@@ -1106,10 +1133,12 @@ export default function POSPage() {
     setJatuhTempo('');
     setManualCustomerName('');
     setManualCustomerPhone('');
+    setManualCustomerPhoneError('');
     setPaidAmount('0');
     setDigitalMethod('OVO');
     setPayMethod('cash');
     setTransactionData(null);
+    transactionDataRef.current = null; // Reset ref juga
     setTransactionError(null);
 
     // Refresh data produk untuk memastikan stok terbaru
@@ -1118,61 +1147,22 @@ export default function POSPage() {
 
   const handlePrintReceipt = async () => {
     try {
-      if (!transactionData) {
+      // Gunakan transactionData atau transactionDataRef.current
+      const dataToPrint = transactionData || transactionDataRef.current;
+      
+      if (!dataToPrint) {
         console.error('Tidak ada data transaksi untuk dicetak');
+        alert('Tidak ada data transaksi untuk dicetak. Silakan lakukan transaksi terlebih dahulu.');
         return;
       }
 
-      // Ambil pengaturan struk dari localStorage (diset dari halaman Settings)
-      let storeName = 'TOKO';
-      let address = '';
-      let phone = '';
-      let footerNote = '';
-
-      try {
-        if (typeof window !== 'undefined') {
-          const savedSettings =
-            window.localStorage.getItem('receipt_settings');
-          if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            storeName = parsed.storeName || storeName;
-            address = parsed.address || address;
-            phone = parsed.phone || phone;
-            footerNote = parsed.footerNote || footerNote;
-          }
-
-          // Fallback: jika belum ada nama toko di pengaturan struk,
-          // gunakan data dari pin_session (nama_kios, lokasi, notelp, receipt_footer_text)
-          if (!storeName || storeName === 'TOKO') {
-            const pinSession = window.localStorage.getItem('pin_session');
-            if (pinSession) {
-              try {
-                const sessionData = JSON.parse(pinSession);
-                storeName =
-                  sessionData.nama_kios || storeName || 'TOKO';
-                address =
-                  sessionData.lokasi || address || '';
-                phone =
-                  sessionData.notelp || phone || '';
-                footerNote =
-                  sessionData.receipt_footer_text ||
-                  footerNote ||
-                  '';
-              } catch (err) {
-                console.warn(
-                  'Gagal membaca pin_session untuk fallback nama toko:',
-                  err
-                );
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn(
-          'Gagal membaca pengaturan struk dari localStorage:',
-          e
-        );
-      }
+      // Ambil pengaturan struk dari utility function
+      const { getPrinterSettings } = await import('@/utils/printerSettings');
+      const settings = getPrinterSettings();
+      const storeName = settings.storeName;
+      const address = settings.address;
+      const phone = settings.phone;
+      const footerNote = settings.footerNote;
 
       const now = new Date();
       const receiptData: ReceiptData = {
@@ -1180,25 +1170,27 @@ export default function POSPage() {
         address,
         phone,
         footerNote,
-        transactionId: transactionData.id,
+        transactionId: dataToPrint.id,
         date: now.toLocaleDateString('id-ID'),
         time: now.toLocaleTimeString('id-ID'),
-        items: (transactionData.items || []).map((item) => ({
+        items: (dataToPrint.items || []).map((item) => ({
           name: item.name,
           quantity: item.quantity,
           price: item.price,
           subtotal: item.subtotal,
         })),
-        subtotal: transactionData.total,
+        subtotal: dataToPrint.total,
         tax: 0,
         discount: 0,
-        total: transactionData.total,
-        paid: transactionData.paid,
-        change: transactionData.isDebt ? 0 : transactionData.change,
-        paymentMethod: transactionData.paymentMethod || 'Cash',
-        customerName: transactionData.customerName,
-        isDebt: transactionData.isDebt,
+        total: dataToPrint.total,
+        paid: dataToPrint.paid,
+        change: dataToPrint.isDebt ? 0 : dataToPrint.change,
+        paymentMethod: dataToPrint.paymentMethod || 'Cash',
+        customerName: dataToPrint.customerName,
+        isDebt: dataToPrint.isDebt,
         cashierName: selectedCashier?.name,
+        paperSize: settings.paperSize,
+        showLogo: settings.showLogo,
       };
 
       const escposData = generateReceiptESC_POS(receiptData);
@@ -1211,19 +1203,40 @@ export default function POSPage() {
       }
 
       if (printer.type === 'usb') {
-        let device: USBDevice | null = (printer as unknown as { usbDevice?: USBDevice }).usbDevice || null;
+        // Ambil device dari PrinterProvider
+        let device: USBDevice | null = printer.usbDevice || null;
 
-        if (!device) {
+        // Jika device tidak ada atau tidak terbuka, coba reconnect
+        if (!device || !device.opened) {
           device = await reconnectUSBDevice();
+          
+          // Update device di PrinterProvider jika reconnect berhasil
+          if (device) {
+            printer.setUsbDevice(device);
+          }
         }
 
+        // Jika masih tidak ada device, fallback ke print browser
         if (!device) {
           console.error('Printer USB belum terhubung, fallback ke window.print');
           window.print();
           return;
         }
 
-        await printToPrinter('usb', device, escposData);
+        try {
+          await printToPrinter('usb', device, escposData);
+        } catch (printError) {
+          // Jika print gagal, coba reconnect sekali lagi
+          console.warn('Print gagal, mencoba reconnect:', printError);
+          const reconnectedDevice = await reconnectUSBDevice();
+          
+          if (reconnectedDevice) {
+            printer.setUsbDevice(reconnectedDevice);
+            await printToPrinter('usb', reconnectedDevice, escposData);
+          } else {
+            throw printError;
+          }
+        }
       } else {
         // Bluetooth belum diimplementasikan, fallback ke print sistem
         window.print();
@@ -1240,42 +1253,13 @@ export default function POSPage() {
 
   const handleCetakStrukTutupKasir = async (data: TutupKasirData) => {
     try {
-      let storeName = 'TOKO';
-      let address = '';
-      let phone = '';
-      let footerNote = '';
-
-      // Ambil pengaturan struk seperti struk transaksi, agar konsisten
-      try {
-        if (typeof window !== 'undefined') {
-          const savedSettings = window.localStorage.getItem('receipt_settings');
-          if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            storeName = parsed.storeName || storeName;
-            address = parsed.address || address;
-            phone = parsed.phone || phone;
-            footerNote = parsed.footerNote || footerNote;
-          }
-
-          if (!storeName || storeName === 'TOKO') {
-            const pinSession = window.localStorage.getItem('pin_session');
-            if (pinSession) {
-              try {
-                const sessionData = JSON.parse(pinSession);
-                storeName = sessionData.nama_kios || storeName || 'TOKO';
-                address = sessionData.lokasi || address || '';
-                phone = sessionData.notelp || phone || '';
-                footerNote =
-                  sessionData.receipt_footer_text || footerNote || '';
-              } catch (err) {
-                console.warn('Gagal membaca pin_session:', err);
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Gagal membaca pengaturan struk:', err);
-      }
+      // Ambil pengaturan struk dari utility function
+      const { getPrinterSettings } = await import('@/utils/printerSettings');
+      const settings = getPrinterSettings();
+      const storeName = settings.storeName;
+      const address = settings.address;
+      const phone = settings.phone;
+      const footerNote = settings.footerNote;
 
       const totalPendapatan =
         (data as any)?.total_pendapatan ?? (data as any)?.total_pendapatan_selesai ?? data.total ?? 0;
@@ -2096,6 +2080,7 @@ export default function POSPage() {
               setJatuhTempo('');
               setManualCustomerName('');
               setManualCustomerPhone('');
+    setManualCustomerPhoneError('');
               setPaidAmount('0');
             }}
           >
@@ -2196,6 +2181,7 @@ export default function POSPage() {
                   setJatuhTempo('');
                   setManualCustomerName('');
                   setManualCustomerPhone('');
+    setManualCustomerPhoneError('');
                   setPaidAmount(formatCurrencyInput(total));
                 }}
               >
@@ -2526,10 +2512,32 @@ export default function POSPage() {
                     <input
                       type="tel"
                       value={manualCustomerPhone}
-                      onChange={(e) => setManualCustomerPhone(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        setManualCustomerPhone(value);
+                        if (manualCustomerPhoneError) {
+                          // Validasi jika diisi
+                          if (value) {
+                            if (!(value.startsWith('08') || value.startsWith('62'))) {
+                              setManualCustomerPhoneError('Nomor HP harus diawali dengan 08 atau 62');
+                            } else if (value.length < 9) {
+                              setManualCustomerPhoneError('Nomor HP minimal 9 angka');
+                            } else {
+                              setManualCustomerPhoneError('');
+                            }
+                          } else {
+                            setManualCustomerPhoneError('');
+                          }
+                        }
+                      }}
                       placeholder="08xxxxxxxxxx"
-                    className="w-full px-2.5 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-2.5 border border-gray-300 rounded-lg text-[10px] md:text-xs lg:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    className={`w-full px-2.5 md:px-3 lg:px-4 py-1.5 md:py-2 lg:py-2.5 border rounded-lg text-[10px] md:text-xs lg:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white ${
+                        manualCustomerPhoneError ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     />
+                    {manualCustomerPhoneError && (
+                      <p className="mt-1 text-[10px] md:text-xs text-red-600">{manualCustomerPhoneError}</p>
+                    )}
                   </div>
                 {isDebt && (
                   <div>

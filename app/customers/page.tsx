@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 import { API_BASE_URL } from '@/utils/api';
 import CustomerDetailModal from './CustomerDetailModal';
 import TransactionHistoryModal from './TransactionHistoryModal';
 import { Customer } from './types';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface ApiTransactionItem {
   id: number;
@@ -73,8 +75,12 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState(false); // mobile (< md)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
 
   // Helper function to get customer details by target
   const getCustomerDetail = (customer: ApiCustomer, target: string): string => {
@@ -204,8 +210,30 @@ export default function CustomersPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const validatePhone = (phone: string): string => {
+    if (!phone) return ''; // Phone is optional for customer
+    const cleaned = phone.replace(/\D/g, '');
+    if (!(cleaned.startsWith('08') || cleaned.startsWith('62'))) {
+      return 'Nomor HP harus diawali dengan 08 atau 62';
+    }
+    if (cleaned.length < 9) {
+      return 'Nomor HP minimal 9 angka';
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validasi nomor HP jika diisi
+    if (formData.phone) {
+      const phoneValidation = validatePhone(formData.phone);
+      if (phoneValidation) {
+        setPhoneError(phoneValidation);
+        return;
+      }
+    }
+    setPhoneError('');
     
     try {
       const jwtPin =
@@ -236,15 +264,20 @@ export default function CustomersPage() {
 
       // Reset form dan tutup modal
       setFormData({ name: '', phone: '' });
+      setPhoneError('');
       setShowModal(false);
       
       // Refresh data customers
       fetchCustomers(page, searchQuery);
-      alert('Pelanggan berhasil ditambahkan!');
+      setNotificationMessage('Pelanggan berhasil ditambahkan!');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Gagal menambahkan pelanggan';
-      alert(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     }
   };
 
@@ -538,13 +571,15 @@ export default function CustomersPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
-          >
-            <i className="ri-user-add-line text-base sm:text-lg"></i>
-            Tambah Pelanggan
-          </button>
+          {hasPermission(PERMISSIONS.CUSTOMER_CREATE) && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm sm:text-base min-h-[44px]"
+            >
+              <i className="ri-user-add-line text-base sm:text-lg"></i>
+              Tambah Pelanggan
+            </button>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -653,13 +688,15 @@ export default function CustomersPage() {
                     >
                       <i className="ri-eye-line text-lg"></i>
                     </button>
-                    <button
-                      onClick={() => handleDeleteCustomer(customer)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg active:bg-red-50 text-red-500 transition-colors cursor-pointer touch-manipulation"
-                      title="Hapus"
-                    >
-                      <i className="ri-delete-bin-line text-lg"></i>
-                    </button>
+                    {hasPermission(PERMISSIONS.CUSTOMER_DELETE) && (
+                      <button
+                        onClick={() => handleDeleteCustomer(customer)}
+                        className="w-10 h-10 flex items-center justify-center rounded-lg active:bg-red-50 text-red-500 transition-colors cursor-pointer touch-manipulation"
+                        title="Hapus"
+                      >
+                        <i className="ri-delete-bin-line text-lg"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
@@ -797,13 +834,15 @@ export default function CustomersPage() {
                         >
                           <i className="ri-eye-line text-base"></i>
                         </button>
-                        <button
-                          onClick={() => handleDeleteCustomer(customer)}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer"
-                          title="Hapus"
-                        >
-                          <i className="ri-delete-bin-line text-base"></i>
-                        </button>
+                        {hasPermission(PERMISSIONS.CUSTOMER_DELETE) && (
+                          <button
+                            onClick={() => handleDeleteCustomer(customer)}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer"
+                            title="Hapus"
+                          >
+                            <i className="ri-delete-bin-line text-base"></i>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -874,11 +913,22 @@ export default function CustomersPage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setFormData({ ...formData, phone: value });
+                    if (phoneError) {
+                      const validation = validatePhone(value);
+                      setPhoneError(validation);
+                    }
+                  }}
+                  placeholder="08xxxxxxxxxx (opsional)"
+                  className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                    phoneError ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 />
+                {phoneError && (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -914,6 +964,13 @@ export default function CustomersPage() {
         isOpen={showTransactionModal}
         onClose={() => setShowTransactionModal(false)}
         customer={selectedCustomer}
+      />
+
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
       />
     </div>
   );

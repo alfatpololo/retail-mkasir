@@ -13,6 +13,7 @@ import {
   ReceiptData,
   USBDevice,
 } from '@/utils/printerUtils';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 type QuickFilter = 'Semua' | 'Hari Ini' | 'Minggu Ini' | 'Bulan Ini';
 type StatusFilter = 'Semua' | 'Selesai' | 'Piutang' | 'Batal';
@@ -352,55 +353,13 @@ function TransactionsPageContent() {
     if (!selectedTransaction) return;
 
     try {
-      // Ambil pengaturan struk dari localStorage
-      let storeName = 'TOKO';
-      let address = '';
-      let phone = '';
-      let footerNote = '';
-
-      try {
-        if (typeof window !== 'undefined') {
-          const savedSettings =
-            window.localStorage.getItem('receipt_settings');
-          if (savedSettings) {
-            const parsed = JSON.parse(savedSettings);
-            storeName = parsed.storeName || storeName;
-            address = parsed.address || address;
-            phone = parsed.phone || phone;
-            footerNote = parsed.footerNote || footerNote;
-          }
-
-          // Fallback: jika nama toko belum terisi, pakai data dari pin_session
-          if (!storeName || storeName === 'TOKO') {
-            const pinSession = window.localStorage.getItem('pin_session');
-            if (pinSession) {
-              try {
-                const sessionData = JSON.parse(pinSession);
-                storeName =
-                  sessionData.nama_kios || storeName || 'TOKO';
-                address =
-                  sessionData.lokasi || address || '';
-                phone =
-                  sessionData.notelp || phone || '';
-                footerNote =
-                  sessionData.receipt_footer_text ||
-                  footerNote ||
-                  '';
-              } catch (err) {
-                console.warn(
-                  'Gagal membaca pin_session untuk fallback nama toko:',
-                  err
-                );
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn(
-          'Gagal membaca pengaturan struk dari localStorage:',
-          e
-        );
-      }
+      // Ambil pengaturan struk dari utility function
+      const { getPrinterSettings } = await import('@/utils/printerSettings');
+      const settings = getPrinterSettings();
+      const storeName = settings.storeName;
+      const address = settings.address;
+      const phone = settings.phone;
+      const footerNote = settings.footerNote;
 
       const now = new Date(selectedTransaction.tanggal);
       const receiptItems = selectedTransaction.items.map((item) => ({
@@ -429,6 +388,8 @@ function TransactionsPageContent() {
         customerName: selectedTransaction.pelanggan !== '-' ? selectedTransaction.pelanggan : undefined,
         isDebt: selectedTransaction.status === 'piutang',
         cashierName: selectedTransaction.kasir !== '-' ? selectedTransaction.kasir : undefined,
+        paperSize: settings.paperSize,
+        showLogo: settings.showLogo,
       };
 
       const escposData = generateReceiptESC_POS(receiptData);
@@ -469,12 +430,20 @@ function TransactionsPageContent() {
       }
 
       if (printer.type === 'usb') {
-        let device: USBDevice | null = (printer as unknown as { usbDevice?: USBDevice }).usbDevice || null;
+        // Ambil device dari PrinterProvider
+        let device: USBDevice | null = printer.usbDevice || null;
 
-        if (!device) {
+        // Jika device tidak ada atau tidak terbuka, coba reconnect
+        if (!device || !device.opened) {
           device = await reconnectUSBDevice();
+          
+          // Update device di PrinterProvider jika reconnect berhasil
+          if (device) {
+            printer.setUsbDevice(device);
+          }
         }
 
+        // Jika masih tidak ada device, fallback ke print browser
         if (!device) {
           console.error('Printer USB belum terhubung, fallback ke print browser');
           if (typeof window !== 'undefined') {
@@ -483,7 +452,20 @@ function TransactionsPageContent() {
           return;
         }
 
-        await printToPrinter('usb', device, escposData);
+        try {
+          await printToPrinter('usb', device, escposData);
+        } catch (printError) {
+          // Jika print gagal, coba reconnect sekali lagi
+          console.warn('Print gagal, mencoba reconnect:', printError);
+          const reconnectedDevice = await reconnectUSBDevice();
+          
+          if (reconnectedDevice) {
+            printer.setUsbDevice(reconnectedDevice);
+            await printToPrinter('usb', reconnectedDevice, escposData);
+          } else {
+            throw printError;
+          }
+        }
       } else {
         // Bluetooth belum diimplementasikan, fallback ke print sistem
         if (typeof window !== 'undefined') {
@@ -942,7 +924,7 @@ function TransactionsPageContent() {
                                 <i className="ri-eye-line"></i>
                                 Detail
                               </span>
-                              {tab === 'history' && !transaction.batal && (
+                              {tab === 'history' && !transaction.batal && hasPermission(PERMISSIONS.TRANSACTION_DELETE) && (
                                 <button
                                   onClick={(e) => handleCancelTransaction(transaction, e)}
                                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
@@ -1011,7 +993,7 @@ function TransactionsPageContent() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {tab === 'history' && selectedTransaction && !selectedTransaction.batal && (
+                        {tab === 'history' && selectedTransaction && !selectedTransaction.batal && hasPermission(PERMISSIONS.TRANSACTION_DELETE) && (
                           <button
                             type="button"
                             onClick={() => {

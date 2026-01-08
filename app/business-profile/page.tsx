@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 import { StallProfile, getStallProfile, updateStallProfile } from '@/utils/stallProfile';
 
 export default function BusinessProfilePage() {
@@ -24,11 +25,15 @@ export default function BusinessProfilePage() {
     pajak: 0.1,
     status_biaya_lainnya: false,
     tipe_biaya_lainnya: 'nominal',
+    logo_url: null,
   });
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
 
   const getJwtPin = () => {
     if (typeof window !== 'undefined') {
@@ -37,9 +42,10 @@ export default function BusinessProfilePage() {
     return null;
   };
 
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    // Fallback to alert since stores module doesn't exist
-    alert(message);
+  const handleShowNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setShowNotification(true);
   };
 
   useEffect(() => {
@@ -58,7 +64,7 @@ export default function BusinessProfilePage() {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Gagal memuat profil usaha';
-        showNotification(errorMessage, 'error');
+        handleShowNotification(errorMessage, 'error');
       } finally {
         setIsLoading(false);
       }
@@ -96,15 +102,16 @@ export default function BusinessProfilePage() {
             : null,
       };
 
-      const updated = await updateStallProfile(payload, jwtPin);
+      const updated = await updateStallProfile(payload, jwtPin, logoFile);
       setProfile((prev) => ({
         ...prev,
         ...updated,
       }));
-      showNotification('Profil usaha berhasil disimpan', 'success');
+      setLogoFile(null); // Reset logo file setelah berhasil disimpan
+      handleShowNotification('Profil usaha berhasil disimpan', 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan profil usaha';
-      showNotification(errorMessage, 'error');
+      handleShowNotification(errorMessage, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -118,7 +125,7 @@ export default function BusinessProfilePage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Profil Usaha</h1>
           <p className="text-gray-600 text-sm">
-            Atur informasi warung Anda seperti nama, alamat, jam operasional, dan pengaturan pajak.
+            Atur informasi warung Anda seperti nama, alamat, dan kontak.
           </p>
         </div>
 
@@ -132,6 +139,12 @@ export default function BusinessProfilePage() {
                     alt="Logo"
                     className="w-full h-full object-cover"
                   />
+                ) : profile.logo_url ? (
+                  <img
+                    src={profile.logo_url}
+                    alt="Logo"
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <span className="ri-store-2-line w-12 h-12 flex items-center justify-center text-gray-400"></span>
                 )}
@@ -139,7 +152,7 @@ export default function BusinessProfilePage() {
               <div className="flex-1">
                 <h3 className="text-base font-semibold text-gray-900 mb-1">Logo Usaha</h3>
                 <p className="text-xs text-gray-500 mb-3">
-                  (Opsional) Upload logo usaha Anda (PNG, JPG max 2MB). Saat ini logo belum dikirim ke API.
+                  (Opsional) Upload logo usaha Anda (PNG, JPG max 2MB).
                 </p>
                 <input
                   type="file"
@@ -240,167 +253,6 @@ export default function BusinessProfilePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kode Warung</label>
-                <input
-                  type="text"
-                  value={profile.kode}
-                  onChange={(e) => handleChange('kode', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jam Mulai Operasional</label>
-                <input
-                  type="time"
-                  value={profile.jam_mulai_operasional?.substring(0, 5) || ''}
-                  onChange={(e) =>
-                    handleChange('jam_mulai_operasional', `${e.target.value}:00`)
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jam Selesai Operasional</label>
-                <input
-                  type="time"
-                  value={profile.jam_selesai_operasional?.substring(0, 5) || ''}
-                  onChange={(e) =>
-                    handleChange('jam_selesai_operasional', `${e.target.value}:00`)
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                <input
-                  type="number"
-                  step="0.0000001"
-                  value={profile.lat ?? ''}
-                  onChange={(e) =>
-                    handleChange('lat', e.target.value === '' ? null : Number(e.target.value))
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                <input
-                  type="number"
-                  step="0.0000001"
-                  value={profile.long ?? ''}
-                  onChange={(e) =>
-                    handleChange('long', e.target.value === '' ? null : Number(e.target.value))
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Pengaturan Pajak</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="status_pajak"
-                    type="checkbox"
-                    checked={profile.status_pajak}
-                    onChange={(e) => handleChange('status_pajak', e.target.checked)}
-                    className="h-4 w-4 text-green-600 border-gray-300 rounded"
-                  />
-                  <label htmlFor="status_pajak" className="text-sm text-gray-700">
-                    Aktifkan pajak penjualan
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">Besaran Pajak (%)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.1"
-                    value={profile.pajak * 100}
-                    onChange={(e) =>
-                      handleChange('pajak', Number(e.target.value || 0) / 100)
-                    }
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Biaya Lainnya
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="status_biaya_lainnya"
-                    type="checkbox"
-                    checked={profile.status_biaya_lainnya}
-                    onChange={(e) =>
-                      handleChange('status_biaya_lainnya', e.target.checked)
-                    }
-                    className="h-4 w-4 text-green-600 border-gray-300 rounded"
-                  />
-                  <label htmlFor="status_biaya_lainnya" className="text-sm text-gray-700">
-                    Aktifkan biaya layanan lain (service charge, dll)
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Tipe Biaya Lainnya
-                  </label>
-                  <select
-                    value={profile.tipe_biaya_lainnya}
-                    onChange={(e) =>
-                      handleChange('tipe_biaya_lainnya', e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="nominal">Nominal</option>
-                    <option value="persentase">Persentase</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                id="tampil_detik_presensi"
-                type="checkbox"
-                checked={profile.tampil_detik_presensi}
-                onChange={(e) =>
-                  handleChange('tampil_detik_presensi', e.target.checked)
-                }
-                className="h-4 w-4 text-green-600 border-gray-300 rounded"
-              />
-              <label htmlFor="tampil_detik_presensi" className="text-sm text-gray-700">
-                Tampilkan detik pada layar presensi
-              </label>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                id="status_warung"
-                type="checkbox"
-                checked={profile.status}
-                onChange={(e) => handleChange('status', e.target.checked)}
-                className="h-4 w-4 text-green-600 border-gray-300 rounded"
-              />
-              <label htmlFor="status_warung" className="text-sm text-gray-700">
-                Warung Aktif
-              </label>
-            </div>
 
             <div className="flex gap-3 pt-4">
               <button
@@ -428,6 +280,13 @@ export default function BusinessProfilePage() {
           </form>
         </div>
       </div>
+
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }

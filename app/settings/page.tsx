@@ -5,7 +5,9 @@ import Sidebar from '@/components/Sidebar';
 import PrinterStatusIndicator from '@/components/PrinterStatusIndicator';
 import { PrinterConnectionType, usePrinter } from '@/components/PrinterProvider';
 import { reconnectUSBDevice, reconnectBluetoothDevice, sendToUSBPrinter, sendToBluetoothPrinter } from '@/utils/printerUtils';
-import { saveReceiptSettings, ReceiptSettings } from '@/utils/api';
+import { saveReceiptSettings, ReceiptSettings, updatePrinterSettings, UpdatePrinterPayload } from '@/utils/api';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
+import { getStallProfile } from '@/utils/stallProfile';
 
 type ConnectionType = PrinterConnectionType;
 
@@ -22,9 +24,15 @@ export default function SettingsPage() {
     footerNote: '',
     paperSize: '58mm',
     printer: '',
+    autoPrint: false,
+    showLogo: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [hasPrinterPermission, setHasPrinterPermission] = useState(false); // State untuk permission check
 
   const printer = usePrinter();
   const { setConnection, setUsbDevice: setUsbDeviceProvider, setBluetoothDevice: setBluetoothDeviceProvider, usbDevice: providerUsbDevice, bluetoothDevice: providerBluetoothDevice, type: savedType } = printer;
@@ -36,12 +44,30 @@ export default function SettingsPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // tablet (md, lg, xl, but not 2xl)
   const [usbDevice, setUsbDevice] = useState<any>(null); // Simpan referensi device USB
 
+  // Check permission setelah component mount di client untuk menghindari hydration error
+  useEffect(() => {
+    setHasPrinterPermission(hasPermission(PERMISSIONS.SETTINGS_PRINTER));
+  }, []);
+
   // Load settings dari localStorage dan pin_session saat component mount
   useEffect(() => {
-    const loadSettings = () => {
+    const loadSettings = async () => {
       setIsLoading(true);
       
       try {
+        let addressFromProfile = '';
+        
+        // Ambil alamat dari business profile (prioritas utama)
+        try {
+          const jwtPin = typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
+          if (jwtPin) {
+            const profileData = await getStallProfile(jwtPin);
+            addressFromProfile = profileData.alamat || '';
+          }
+        } catch (error) {
+          console.warn('Gagal mengambil alamat dari business profile:', error);
+        }
+        
         // Cek apakah ada settings yang sudah disimpan di localStorage
         const savedSettings = typeof window !== 'undefined' ? localStorage.getItem('receipt_settings') : null;
         
@@ -50,11 +76,13 @@ export default function SettingsPage() {
             const parsed = JSON.parse(savedSettings);
             setReceiptSettings({
               storeName: parsed.storeName || '',
-              address: parsed.address || '',
+              address: addressFromProfile || parsed.address || '', // Alamat dari profile diutamakan
               phone: parsed.phone || '',
               footerNote: parsed.footerNote || '',
               paperSize: parsed.paperSize || '58mm',
               printer: parsed.printer || '',
+              autoPrint: parsed.autoPrint ?? false,
+              showLogo: parsed.showLogo ?? false,
             });
             setIsLoading(false);
             return;
@@ -70,15 +98,29 @@ export default function SettingsPage() {
             const sessionData = JSON.parse(pinSession);
             setReceiptSettings({
               storeName: sessionData.nama_kios || '',
-              address: sessionData.lokasi || '',
+              address: addressFromProfile || sessionData.lokasi || '', // Alamat dari profile diutamakan
               phone: sessionData.notelp || '',
               footerNote: sessionData.receipt_footer_text || '',
               paperSize: '58mm',
               printer: '',
+              autoPrint: false,
+              showLogo: false,
             });
           } catch (e) {
             console.error('Error parsing pin_session:', e);
           }
+        } else {
+          // Jika tidak ada data sama sekali, set dengan alamat dari profile
+          setReceiptSettings({
+            storeName: '',
+            address: addressFromProfile,
+            phone: '',
+            footerNote: '',
+            paperSize: '58mm',
+            printer: '',
+            autoPrint: false,
+            showLogo: false,
+          });
         }
       } catch (error) {
         console.error('Error loading settings:', error);
@@ -120,6 +162,7 @@ export default function SettingsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setPrinterStatus(null);
     
     try {
       // Simpan ke localStorage terlebih dahulu
@@ -132,39 +175,88 @@ export default function SettingsPage() {
       
       if (jwtPin) {
         try {
-          const response = await saveReceiptSettings(receiptSettings, jwtPin);
+          // Siapkan payload untuk endpoint update_printer
+          const payload: UpdatePrinterPayload = {
+            nama: receiptSettings.storeName || '',
+            alamat: receiptSettings.address || '',
+            notelp: receiptSettings.phone || '',
+            receipt_footer_text: receiptSettings.footerNote || '',
+            paper_size: receiptSettings.paperSize || '58mm',
+            auto_print: receiptSettings.autoPrint ? 1 : 0,
+            show_logo_on_receipt: receiptSettings.showLogo ? 1 : 0,
+          };
+
+          const response = await updatePrinterSettings(payload, jwtPin);
           
           if (response.success) {
+            setNotificationMessage('Pengaturan struk berhasil disimpan!');
+            setNotificationType('success');
+            setShowNotification(true);
             setPrinterStatus({
               type: 'success',
               message: 'Pengaturan struk berhasil disimpan!',
             });
+            // Auto-hide notification setelah 3 detik
+            setTimeout(() => {
+              setShowNotification(false);
+            }, 3000);
           } else {
+            const errorMsg = response.message || 'Gagal menyimpan pengaturan';
+            setNotificationMessage(errorMsg);
+            setNotificationType('error');
+            setShowNotification(true);
             setPrinterStatus({
-              type: 'success',
-              message: 'Pengaturan struk berhasil disimpan (lokal)!',
+              type: 'error',
+              message: errorMsg,
             });
+            // Auto-hide notification setelah 4 detik
+            setTimeout(() => {
+              setShowNotification(false);
+            }, 4000);
           }
         } catch (error) {
           // Jika API error (404 atau lainnya), tetap simpan ke localStorage
-          console.warn('API endpoint tidak tersedia, menyimpan ke localStorage:', error instanceof Error ? error.message : String(error));
+          const errorMsg = error instanceof Error ? error.message : 'Terjadi kesalahan saat menyimpan';
+          console.warn('API endpoint tidak tersedia, menyimpan ke localStorage:', errorMsg);
+          setNotificationMessage('Pengaturan struk berhasil disimpan (lokal)!');
+          setNotificationType('success');
+          setShowNotification(true);
           setPrinterStatus({
             type: 'success',
             message: 'Pengaturan struk berhasil disimpan (lokal)!',
           });
+          // Auto-hide notification setelah 3 detik
+          setTimeout(() => {
+            setShowNotification(false);
+          }, 3000);
         }
       } else {
+        setNotificationMessage('Pengaturan struk berhasil disimpan (lokal)!');
+        setNotificationType('success');
+        setShowNotification(true);
         setPrinterStatus({
           type: 'success',
           message: 'Pengaturan struk berhasil disimpan (lokal)!',
         });
+        // Auto-hide notification setelah 3 detik
+        setTimeout(() => {
+          setShowNotification(false);
+        }, 3000);
       }
     } catch (error) {
       console.error('Gagal menyimpan pengaturan:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Gagal menyimpan pengaturan. Silakan coba lagi.';
+      setNotificationMessage(errorMsg);
+      setNotificationType('error');
+      setShowNotification(true);
       setPrinterStatus({
         type: 'error',
-        message: 'Gagal menyimpan pengaturan. Silakan coba lagi.',
+        message: errorMsg,
       });
+      // Auto-hide notification setelah 4 detik
+      setTimeout(() => {
+        setShowNotification(false);
+      }, 4000);
     } finally {
       setIsSaving(false);
     }
@@ -212,6 +304,7 @@ export default function SettingsPage() {
             isConnected: true,
             type: 'usb',
             deviceName: name,
+            usbDevice: device,
           });
         }
       } else if (connectionType === 'bluetooth') {
@@ -381,10 +474,11 @@ export default function SettingsPage() {
           message: 'Dialog print dibuka. Pilih printer thermal Anda lalu cetak struk.',
         });
       } else if (connectionType === 'usb') {
-        let deviceToUse = usbDevice || providerUsbDevice;
+        // Ambil device dari PrinterProvider
+        let deviceToUse = providerUsbDevice || usbDevice;
         
-        // Reconnect jika device tidak ada
-        if (!deviceToUse) {
+        // Reconnect jika device tidak ada atau tidak terbuka
+        if (!deviceToUse || !deviceToUse.opened) {
           deviceToUse = await reconnectUSBDevice();
           
           if (deviceToUse) {
@@ -402,12 +496,32 @@ export default function SettingsPage() {
         }
 
         const escposData = generateTestPrint();
-        await sendToUSBPrinter(deviceToUse, escposData);
         
-        setPrinterStatus({
-          type: 'success',
-          message: 'Test print berhasil dikirim ke printer USB. Cek hasil cetakan di printer.',
-        });
+        try {
+          await sendToUSBPrinter(deviceToUse, escposData);
+          
+          setPrinterStatus({
+            type: 'success',
+            message: 'Test print berhasil dikirim ke printer USB. Cek hasil cetakan di printer.',
+          });
+        } catch (printErr) {
+          // Jika print gagal, coba reconnect sekali lagi
+          console.warn('Print gagal, mencoba reconnect:', printErr);
+          const reconnectedDevice = await reconnectUSBDevice();
+          
+          if (reconnectedDevice) {
+            setUsbDevice(reconnectedDevice);
+            setUsbDeviceProvider(reconnectedDevice);
+            await sendToUSBPrinter(reconnectedDevice, escposData);
+            
+            setPrinterStatus({
+              type: 'success',
+              message: 'Test print berhasil dikirim ke printer USB setelah reconnect. Cek hasil cetakan di printer.',
+            });
+          } else {
+            throw printErr;
+          }
+        }
       } else if (connectionType === 'bluetooth') {
         // Bluetooth implementation bisa ditambahkan nanti
         setPrinterStatus({
@@ -545,25 +659,26 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Pengaturan Struk */}
-          <div className="bg-white rounded-3xl border border-gray-200/50 px-6 py-7 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                <i className="ri-file-text-line text-white text-lg"></i>
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">Pengaturan Struk</h2>
-            </div>
-            
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="flex flex-col items-center gap-3">
-                  <i className="ri-loader-4-line animate-spin text-3xl text-emerald-500"></i>
-                  <p className="text-sm text-gray-600">Memuat pengaturan...</p>
+        <div className={`grid grid-cols-1 ${hasPrinterPermission ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} gap-6 lg:gap-8`}>
+          {/* Pengaturan Struk - Hanya tampil jika ada permission */}
+          {hasPrinterPermission && (
+            <div className="bg-white rounded-3xl border border-gray-200/50 px-6 py-7 shadow-xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <i className="ri-file-text-line text-white text-lg"></i>
                 </div>
+                <h2 className="text-xl font-bold text-gray-900">Pengaturan Struk</h2>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="flex flex-col items-center gap-3">
+                    <i className="ri-loader-4-line animate-spin text-3xl text-emerald-500"></i>
+                    <p className="text-sm text-gray-600">Memuat pengaturan...</p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                     <i className="ri-store-2-line text-emerald-600"></i>
@@ -602,7 +717,7 @@ export default function SettingsPage() {
                     value={receiptSettings.phone}
                     onChange={(e) => setReceiptSettings({ ...receiptSettings, phone: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px] disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={isSaving}
+                    disabled={true}
                   />
                 </div>
 
@@ -620,37 +735,56 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <i className="ri-file-paper-line text-emerald-600"></i>
-                      Ukuran Kertas
-                    </label>
-                    <select
-                      value={receiptSettings.paperSize}
-                      onChange={(e) => setReceiptSettings({ ...receiptSettings, paperSize: e.target.value })}
-                      className="w-full px-4 py-3 pr-8 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={isSaving}
-                    >
-                      <option value="58mm">58mm</option>
-                      <option value="80mm">80mm</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <i className="ri-file-paper-line text-emerald-600"></i>
+                    Ukuran Kertas
+                  </label>
+                  <select
+                    value={receiptSettings.paperSize}
+                    onChange={(e) => setReceiptSettings({ ...receiptSettings, paperSize: e.target.value })}
+                    className="w-full px-4 py-3 pr-8 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isSaving}
+                  >
+                    <option value="58mm">58mm</option>
+                    <option value="80mm">80mm</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <i className="ri-printer-line text-emerald-600"></i>
-                      Nama Printer
-                    </label>
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center gap-3">
                     <input
-                      type="text"
-                      value={receiptSettings.printer}
-                      onChange={(e) => setReceiptSettings({ ...receiptSettings, printer: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all min-h-[44px] disabled:opacity-60 disabled:cursor-not-allowed"
+                      id="autoPrint"
+                      type="checkbox"
+                      checked={receiptSettings.autoPrint ?? false}
+                      onChange={(e) => setReceiptSettings({ ...receiptSettings, autoPrint: e.target.checked })}
+                      className="h-5 w-5 text-emerald-600 border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                       disabled={isSaving}
                     />
+                    <label htmlFor="autoPrint" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                      <i className="ri-printer-line text-emerald-600"></i>
+                      Auto Print
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="showLogo"
+                      type="checkbox"
+                      checked={receiptSettings.showLogo ?? false}
+                      onChange={(e) => setReceiptSettings({ ...receiptSettings, showLogo: e.target.checked })}
+                      className="h-5 w-5 text-emerald-600 border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={isSaving}
+                    />
+                    <label htmlFor="showLogo" className="text-sm font-medium text-gray-700 cursor-pointer flex items-center gap-2">
+                      <i className="ri-image-line text-emerald-600"></i>
+                      Tampilkan Logo
+                    </label>
                   </div>
                 </div>
+
+                {/* Status Message */}
+                {printerStatus && renderStatus()}
 
                 <div className="pt-2">
                   <button
@@ -660,23 +794,24 @@ export default function SettingsPage() {
                   >
                     {isSaving ? (
                       <>
-                        <i className="ri-loader-4-line animate-spin"></i>
-                        Menyimpan...
+                        <i className="ri-loader-4-line animate-spin text-lg"></i>
+                        <span>Menyimpan...</span>
                       </>
                     ) : (
                       <>
                         <i className="ri-save-line"></i>
-                        Simpan Pengaturan
+                        <span>Simpan Pengaturan</span>
                       </>
                     )}
                   </button>
                 </div>
               </form>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Preview & Koneksi Printer */}
-          <div className="space-y-6">
+          <div className={`space-y-6 ${hasPrinterPermission ? '' : 'lg:col-span-1'}`}>
             {/* Preview Struk */}
             <div className="bg-white rounded-3xl border border-gray-200/50 px-6 py-7 shadow-xl">
               <div className="flex items-center gap-3 mb-6">
@@ -860,6 +995,49 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {showNotification && (
+        <div className="fixed top-4 right-4 z-[60] animate-slide-in-right">
+          <div className={`bg-white rounded-xl shadow-2xl border ${
+            notificationType === 'success' 
+              ? 'border-emerald-200' 
+              : 'border-red-200'
+          } p-4 min-w-[320px] max-w-md`}>
+            <div className="flex items-start gap-3">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                notificationType === 'success' 
+                  ? 'bg-emerald-100' 
+                  : 'bg-red-100'
+              }`}>
+                <i className={`${
+                  notificationType === 'success' 
+                    ? 'ri-checkbox-circle-fill text-emerald-500' 
+                    : 'ri-error-warning-fill text-red-500'
+                } text-2xl`}></i>
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${
+                  notificationType === 'success' ? 'text-gray-900' : 'text-red-900'
+                } mb-1`}>
+                  {notificationType === 'success' ? 'Berhasil!' : 'Error'}
+                </p>
+                <p className={`text-xs ${
+                  notificationType === 'success' ? 'text-gray-600' : 'text-red-600'
+                }`}>
+                  {notificationMessage}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNotification(false)}
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <i className="ri-close-line text-gray-400"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

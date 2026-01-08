@@ -1,6 +1,7 @@
 'use client';
 
 import { Customer } from './types';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface CustomerDetailModalProps {
   isOpen: boolean;
@@ -138,7 +139,7 @@ export default function CustomerDetailModal({
               Lihat Riwayat Transaksi
             </button>
           )}
-          {onEdit && (
+          {onEdit && hasPermission(PERMISSIONS.CUSTOMER_UPDATE) && (
             <button
               onClick={onEdit}
               className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation flex items-center justify-center gap-2"

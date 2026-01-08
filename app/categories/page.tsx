@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 import { API_BASE_URL } from '@/utils/api';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface ApiCategory {
   id: number;
@@ -105,6 +107,11 @@ export default function CategoriesPage() {
   const [categoryProductsTotalItems, setCategoryProductsTotalItems] = useState(0);
   const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
   const [categoryProductsError, setCategoryProductsError] = useState<string | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
 
   // Reset sidebar state saat window resize untuk memastikan konsistensi
   useEffect(() => {
@@ -180,6 +187,9 @@ export default function CategoriesPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal memuat kategori produk';
       setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -238,9 +248,15 @@ export default function CategoriesPage() {
         urutan: 1,
         status: 1,
       });
+      setNotificationMessage(editingCategory ? 'Kategori berhasil diperbarui' : 'Kategori berhasil ditambahkan');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan kategori produk';
       setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setSaving(false);
     }
@@ -330,16 +346,21 @@ export default function CategoriesPage() {
     fetchCategoryProducts(selectedCategory, nextPage);
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      if (!confirm('Yakin ingin menghapus kategori ini?')) return;
+  const handleDeleteClick = (id: number) => {
+    setCategoryToDelete(id);
+    setShowDeleteConfirm(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!categoryToDelete) return;
+
+    try {
       const jwtPin = typeof window !== 'undefined' ? localStorage.getItem('jwt_pin') : null;
       if (!jwtPin) {
         throw new Error('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
       }
 
-      const response = await fetch(`${API_BASE_URL}/master/product-categories/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/master/product-categories/${categoryToDelete}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -353,9 +374,16 @@ export default function CategoriesPage() {
       }
 
       await fetchCategories(page);
+      setShowDeleteConfirm(false);
+      setCategoryToDelete(null);
+      setNotificationMessage('Kategori berhasil dihapus');
+      setNotificationType('success');
+      setShowNotification(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal menghapus kategori produk';
-      setError(message);
+      setNotificationMessage(message);
+      setNotificationType('error');
+      setShowNotification(true);
     }
   };
 
@@ -449,22 +477,24 @@ export default function CategoriesPage() {
               <p className="text-gray-500 text-xs sm:text-sm">Kelola kategori produk Anda</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setEditingCategory(null);
-              setFormData({
-                nama: '',
-                deskripsi: '',
-                urutan: 1,
-                status: 1,
-              });
-              setShowModal(true);
-            }}
-            className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px]"
-          >
-            <i className="ri-add-line text-base sm:text-lg"></i>
-            Tambah Kategori
-          </button>
+          {hasPermission(PERMISSIONS.CATEGORY_CREATE) && (
+            <button
+              onClick={() => {
+                setEditingCategory(null);
+                setFormData({
+                  nama: '',
+                  deskripsi: '',
+                  urutan: 1,
+                  status: 1,
+                });
+                setShowModal(true);
+              }}
+              className="w-full sm:w-auto px-5 py-3 sm:py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px]"
+            >
+              <i className="ri-add-line text-base sm:text-lg"></i>
+              Tambah Kategori
+            </button>
+          )}
           </div>
 
           <div className="bg-white rounded-xl border border-emerald-100 overflow-hidden">
@@ -561,26 +591,33 @@ export default function CategoriesPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(category);
-                              }}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 hover:text-emerald-800 transition-colors duration-150"
-                              title="Edit"
-                            >
-                              <i className="ri-edit-line text-sm"></i>
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(category.id);
-                              }}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors duration-150"
-                              title="Hapus"
-                            >
-                              <i className="ri-delete-bin-line text-sm"></i>
-                            </button>
+                            {hasPermission(PERMISSIONS.CATEGORY_UPDATE) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(category);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 hover:text-emerald-800 transition-colors duration-150"
+                                title="Edit"
+                              >
+                                <i className="ri-edit-line text-sm"></i>
+                              </button>
+                            )}
+                            {hasPermission(PERMISSIONS.CATEGORY_DELETE) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(category.id);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors duration-150"
+                                title="Hapus"
+                              >
+                                <i className="ri-delete-bin-line text-sm"></i>
+                              </button>
+                            )}
+                            {!hasPermission(PERMISSIONS.CATEGORY_UPDATE) && !hasPermission(PERMISSIONS.CATEGORY_DELETE) && (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -850,6 +887,57 @@ export default function CategoriesPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <i className="ri-error-warning-line text-2xl text-red-600"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Konfirmasi Hapus</h3>
+                  <p className="text-sm text-gray-500 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-6">
+                Yakin ingin menghapus kategori ini?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setCategoryToDelete(null);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium active:bg-gray-200 sm:hover:bg-gray-200 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium active:bg-red-700 sm:hover:bg-red-700 transition-colors cursor-pointer whitespace-nowrap min-h-[44px] touch-manipulation"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }

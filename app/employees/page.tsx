@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { API_BASE_URL } from '@/utils/api';
+import { hasPermission, PERMISSIONS } from '@/utils/permissions';
 
 interface ApiEmployee {
   id: number;
@@ -62,6 +63,12 @@ export default function EmployeesPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [currentUserLevel, setCurrentUserLevel] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Ambil level dan ID user yang sedang login
   useEffect(() => {
@@ -120,7 +127,7 @@ export default function EmployeesPage() {
         throw new Error('JWT PIN tidak ditemukan. Silakan login PIN terlebih dahulu.');
       }
 
-      let url = `${API_BASE_URL}/master/users?page=${currentPage}&limit=${limit}`;
+      let url = `${API_BASE_URL}/user-tenant?page=${currentPage}&limit=${limit}`;
       if (search && search.trim() !== '') {
         url += `&search=${encodeURIComponent(search.trim())}`;
       }
@@ -134,7 +141,7 @@ export default function EmployeesPage() {
       });
 
       if (!response.ok) {
-        // Fallback ke user-stall jika /master/users tidak ada
+        // Fallback ke user-stall jika /user-tenant tidak ada
         if (response.status === 404) {
           const fallbackResponse = await fetch(`${API_BASE_URL}/user-stall`, {
             method: 'GET',
@@ -231,8 +238,69 @@ export default function EmployeesPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const validatePhone = (phone: string): string => {
+    const cleaned = phone.replace(/\D/g, '');
+    if (!cleaned) {
+      return 'Nomor telepon harus diisi';
+    }
+    if (!(cleaned.startsWith('08') || cleaned.startsWith('62'))) {
+      return 'Nomor HP harus diawali dengan 08 atau 62';
+    }
+    if (cleaned.length < 9) {
+      return 'Nomor HP minimal 9 angka';
+    }
+    return '';
+  };
+
+  const validatePin = (pin: string, isEdit: boolean): string => {
+    if (isEdit) {
+      // Untuk edit, PIN opsional tapi kalau diisi harus 6 digit
+      if (pin && pin.length !== 6) {
+        return 'PIN harus 6 digit';
+      }
+      // Cek apakah hanya angka
+      if (pin && !/^\d+$/.test(pin)) {
+        return 'PIN hanya boleh berisi angka';
+      }
+    } else {
+      // Untuk tambah baru, PIN wajib dan harus 6 digit
+      if (!pin || pin.trim() === '') {
+        return 'PIN harus diisi';
+      }
+      if (pin.length !== 6) {
+        return 'PIN harus tepat 6 digit';
+      }
+      // Cek apakah hanya angka
+      if (!/^\d+$/.test(pin)) {
+        return 'PIN hanya boleh berisi angka';
+      }
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double submit
+    if (isSubmitting) return;
+
+    // Validasi nomor HP
+    const phoneValidation = validatePhone(formData.phone);
+    if (phoneValidation) {
+      setPhoneError(phoneValidation);
+      return;
+    }
+    setPhoneError('');
+
+    // Validasi PIN
+    const pinValidation = validatePin(formData.pin, !!editingEmployee);
+    if (pinValidation) {
+      setPinError(pinValidation);
+      return;
+    }
+    setPinError('');
+
+    setIsSubmitting(true);
 
     try {
       const jwtPin =
@@ -243,8 +311,27 @@ export default function EmployeesPage() {
       }
 
       const url = editingEmployee
-        ? `${API_BASE_URL}/master/users/${editingEmployee.id}`
-        : `${API_BASE_URL}/master/users`;
+        ? `${API_BASE_URL}/user-tenant/${editingEmployee.id}`
+        : `${API_BASE_URL}/user-tenant`;
+
+      // Prepare request body
+      const requestBody: {
+        nama: string;
+        notelp: string;
+        kode: string;
+        level: string;
+        pin?: string;
+      } = {
+        nama: formData.name,
+        notelp: formData.phone,
+        kode: formData.code,
+        level: formData.level,
+      };
+
+      // Untuk edit, hanya kirim PIN jika diisi. Untuk tambah baru, selalu kirim PIN (sudah divalidasi harus 6 digit)
+      if (!editingEmployee || (editingEmployee && formData.pin && formData.pin.length === 6)) {
+        requestBody.pin = formData.pin;
+      }
 
       const response = await fetch(url, {
         method: editingEmployee ? 'PUT' : 'POST',
@@ -252,13 +339,7 @@ export default function EmployeesPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${jwtPin}`,
         },
-        body: JSON.stringify({
-          nama: formData.name,
-          notelp: formData.phone,
-          kode: formData.code,
-          level: formData.level,
-          pin: formData.pin,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -270,9 +351,20 @@ export default function EmployeesPage() {
 
       // Reset form dan tutup modal
       setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
+      setPhoneError('');
+      setPinError('');
       setShowModal(false);
       setShowEditModal(false);
       setEditingEmployee(null);
+
+      // Tampilkan success notification
+      setSuccessMessage(editingEmployee ? 'Data karyawan berhasil diupdate!' : 'Data karyawan berhasil ditambahkan!');
+      setShowSuccessNotification(true);
+      
+      // Auto close notification after 3 seconds
+      setTimeout(() => {
+        setShowSuccessNotification(false);
+      }, 3000);
 
       // Refresh data employees
       fetchEmployees(page, searchQuery);
@@ -280,16 +372,20 @@ export default function EmployeesPage() {
       const message =
         err instanceof Error ? err.message : 'Gagal menyimpan data karyawan';
       alert(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
+    // Jika level adalah Admin, ubah jadi Kasir karena Admin tidak bisa dipilih lagi
+    const level = employee.level.toLowerCase().trim() === 'admin' ? 'Kasir' : employee.level;
     setFormData({
       name: employee.name,
       phone: employee.phone,
       code: employee.code,
-      level: employee.level,
+      level: level,
       pin: '', // Jangan tampilkan PIN yang sudah ada
     });
     setShowEditModal(true);
@@ -297,6 +393,10 @@ export default function EmployeesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Yakin ingin menghapus karyawan ini?')) return;
+
+    if (isDeleting) return;
+
+    setIsDeleting(true);
 
     try {
       const jwtPin =
@@ -306,7 +406,7 @@ export default function EmployeesPage() {
         throw new Error('JWT PIN tidak ditemukan.');
       }
 
-      const response = await fetch(`${API_BASE_URL}/master/users/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/user-tenant/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -321,12 +421,23 @@ export default function EmployeesPage() {
         );
       }
 
+      // Tampilkan success notification
+      setSuccessMessage('Data karyawan berhasil dihapus!');
+      setShowSuccessNotification(true);
+      
+      // Auto close notification after 3 seconds
+      setTimeout(() => {
+        setShowSuccessNotification(false);
+      }, 3000);
+
       // Refresh data employees
       fetchEmployees(page, searchQuery);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Gagal menghapus karyawan';
       alert(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -427,13 +538,15 @@ export default function EmployeesPage() {
                 </p>
               </div>
             </div>
-            {currentUserLevel && currentUserLevel.toLowerCase().trim() === 'admin' && (
+            {hasPermission(PERMISSIONS.USER_CREATE) && (
               <button
-                onClick={() => {
-                  setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
-                  setEditingEmployee(null);
-                  setShowModal(true);
-                }}
+                  onClick={() => {
+                    setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
+                    setPhoneError('');
+                    setPinError('');
+                    setEditingEmployee(null);
+                    setShowModal(true);
+                  }}
                 className="px-4 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
               >
                 <i className="ri-add-line text-lg"></i>
@@ -459,10 +572,11 @@ export default function EmployeesPage() {
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
-              {currentUserLevel && currentUserLevel.toLowerCase().trim() === 'admin' && (
+              {hasPermission(PERMISSIONS.USER_CREATE) && (
                 <button
                   onClick={() => {
                     setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
+                    setPhoneError('');
                     setEditingEmployee(null);
                     setShowModal(true);
                   }}
@@ -561,7 +675,7 @@ export default function EmployeesPage() {
                   <p className="mt-4 text-sm font-medium text-gray-500">
                     {searchQuery ? 'Karyawan tidak ditemukan' : 'Belum ada data karyawan'}
                   </p>
-                  {!searchQuery && currentUserLevel && currentUserLevel.toLowerCase().trim() === 'admin' && (
+                  {!searchQuery && hasPermission(PERMISSIONS.USER_CREATE) && (
                     <button
                       onClick={() => setShowModal(true)}
                       className="mt-4 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors"
@@ -626,68 +740,29 @@ export default function EmployeesPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                        {(() => {
-                          const currentLevel = currentUserLevel ? currentUserLevel.toLowerCase().trim() : null;
-                          const employeeLevel = employee.level ? employee.level.toLowerCase().trim() : null;
-                          const isOwnProfile = employee.id === currentUserId;
-                          
-                          let canEdit = false;
-                          
-                          // Admin: bisa edit semua (termasuk dirinya sendiri)
-                          if (currentLevel === 'admin') {
-                            canEdit = true;
-                          }
-                          // Supervisor: bisa edit kasir dan dirinya sendiri, tidak bisa edit admin atau supervisor lain
-                          else if (currentLevel === 'supervisor') {
-                            canEdit = (employeeLevel === 'kasir') || isOwnProfile;
-                          }
-                          // Kasir: tidak ada akses edit
-                          // (canEdit tetap false)
-                          
-                          if (canEdit) {
-                            return (
-                              <button
-                                onClick={() => handleEdit(employee)}
-                                className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
-                                title="Edit"
-                              >
-                                <i className="ri-pencil-line"></i>
-                              </button>
-                            );
-                          }
-                          return null;
-                        })()}
-                        {(() => {
-                          const currentLevel = currentUserLevel ? currentUserLevel.toLowerCase().trim() : null;
-                          const employeeLevel = employee.level ? employee.level.toLowerCase().trim() : null;
-                          const isOwnProfile = employee.id === currentUserId;
-                          
-                          let canDelete = false;
-                          
-                          // Admin: bisa hapus supervisor dan kasir, tidak bisa hapus admin (termasuk dirinya sendiri)
-                          if (currentLevel === 'admin') {
-                            canDelete = (employeeLevel === 'supervisor' || employeeLevel === 'kasir') && !isOwnProfile;
-                          }
-                          // Supervisor: bisa hapus kasir, tidak bisa hapus admin atau supervisor (termasuk dirinya sendiri)
-                          else if (currentLevel === 'supervisor') {
-                            canDelete = (employeeLevel === 'kasir') && !isOwnProfile;
-                          }
-                          // Kasir: tidak ada akses delete
-                          // (canDelete tetap false)
-                          
-                          if (canDelete) {
-                            return (
-                              <button
-                                onClick={() => handleDelete(employee.id)}
-                                className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
-                                title="Hapus"
-                              >
-                                <i className="ri-delete-bin-line"></i>
-                              </button>
-                            );
-                          }
-                          return null;
-                        })()}
+                        {hasPermission(PERMISSIONS.USER_UPDATE) && (
+                          <button
+                            onClick={() => handleEdit(employee)}
+                            className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
+                            title="Edit"
+                          >
+                            <i className="ri-pencil-line"></i>
+                          </button>
+                        )}
+                        {hasPermission(PERMISSIONS.USER_DELETE) && (
+                          <button
+                            onClick={() => handleDelete(employee.id)}
+                            disabled={isDeleting}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            title="Hapus"
+                          >
+                            {isDeleting ? (
+                              <i className="ri-loader-4-line animate-spin"></i>
+                            ) : (
+                              <i className="ri-delete-bin-line"></i>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -726,6 +801,29 @@ export default function EmployeesPage() {
         </div>
       </div>
 
+      {/* Success Notification */}
+      {showSuccessNotification && (
+        <div className="fixed top-4 right-4 z-[60] animate-slide-in-right">
+          <div className="bg-white rounded-xl shadow-2xl border border-emerald-200 p-4 min-w-[320px] max-w-md">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                <i className="ri-checkbox-circle-fill text-2xl text-emerald-500"></i>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900 mb-1">Berhasil!</p>
+                <p className="text-xs text-gray-600">{successMessage}</p>
+              </div>
+              <button
+                onClick={() => setShowSuccessNotification(false)}
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <i className="ri-close-line text-gray-400"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {(showModal || showEditModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -741,6 +839,8 @@ export default function EmployeesPage() {
                     setShowEditModal(false);
                     setEditingEmployee(null);
                     setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
+                    setPhoneError('');
+                    setPinError('');
                   }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors"
                 >
@@ -785,10 +885,22 @@ export default function EmployeesPage() {
                   type="tel"
                   required
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setFormData({ ...formData, phone: value });
+                    if (phoneError) {
+                      const validation = validatePhone(value);
+                      setPhoneError(validation);
+                    }
+                  }}
+                  className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    phoneError ? 'border-red-300' : 'border-gray-300'
+                  }`}
                   placeholder="08xxxxxxxxxx"
                 />
+                {phoneError && (
+                  <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+                )}
               </div>
 
               <div>
@@ -802,7 +914,6 @@ export default function EmployeesPage() {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="Kasir">Kasir</option>
-                  <option value="Admin">Admin</option>
                   <option value="Manager">Manager</option>
                 </select>
               </div>
@@ -815,11 +926,27 @@ export default function EmployeesPage() {
                   type="password"
                   required={!editingEmployee}
                   value={formData.pin}
-                  onChange={(e) => setFormData({ ...formData, pin: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder={editingEmployee ? 'Kosongkan jika tidak ingin mengubah PIN' : 'Masukkan PIN (min. 4 digit)'}
-                  minLength={editingEmployee ? 0 : 4}
+                  onChange={(e) => {
+                    // Hanya terima angka dan maksimal 6 digit
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setFormData({ ...formData, pin: value });
+                    if (pinError) {
+                      const validation = validatePin(value, !!editingEmployee);
+                      setPinError(validation);
+                    }
+                  }}
+                  maxLength={6}
+                  className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    pinError ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder={editingEmployee ? 'Kosongkan jika tidak ingin mengubah PIN' : 'Masukkan PIN (6 digit)'}
                 />
+                {pinError && (
+                  <p className="mt-1 text-xs text-red-600">{pinError}</p>
+                )}
+                {!pinError && formData.pin && formData.pin.length < 6 && !editingEmployee && (
+                  <p className="mt-1 text-xs text-gray-500">PIN harus tepat 6 digit</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -830,16 +957,27 @@ export default function EmployeesPage() {
                     setShowEditModal(false);
                     setEditingEmployee(null);
                     setFormData({ name: '', phone: '', code: '', level: 'Kasir', pin: '' });
+                    setPhoneError('');
+                    setPinError('');
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {editingEmployee ? 'Update' : 'Simpan'}
+                  {isSubmitting ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin text-lg"></i>
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>{editingEmployee ? 'Update' : 'Simpan'}</span>
+                  )}
                 </button>
               </div>
             </form>

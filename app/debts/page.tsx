@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Sidebar from '@/components/Sidebar';
+import ToastNotification from '@/components/ToastNotification';
 import { API_BASE_URL } from '@/utils/api';
 
 interface TransactionMethod {
@@ -125,6 +126,9 @@ export default function DebtsPage() {
   const [paymentMethodId, setPaymentMethodId] = useState<number | null>(1); // Default Cash (1)
   const [paymentNote, setPaymentNote] = useState<string>('');
   const [isPaying, setIsPaying] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('error');
 
   // Fetch summary data (all piutangs untuk summary)
   const fetchSummary = async () => {
@@ -389,19 +393,25 @@ export default function DebtsPage() {
   // Handle pay debt
   const handlePayDebt = async () => {
     if (!selectedDebt || !paymentMethodId || !paymentAmount) {
-      alert('Mohon lengkapi semua field');
+      setNotificationMessage('Mohon lengkapi semua field');
+      setNotificationType('error');
+      setShowNotification(true);
       return;
     }
 
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('Nominal pembayaran tidak valid');
+      setNotificationMessage('Nominal pembayaran tidak valid');
+      setNotificationType('error');
+      setShowNotification(true);
       return;
     }
 
     const remaining = selectedDebt.total - (selectedDebt.totalDibayar || 0);
     if (amount > remaining) {
-      alert(`Nominal pembayaran tidak boleh lebih dari sisa hutang (Rp ${remaining.toLocaleString('id-ID')})`);
+      setNotificationMessage(`Nominal pembayaran tidak boleh lebih dari sisa hutang (Rp ${remaining.toLocaleString('id-ID')})`);
+      setNotificationType('error');
+      setShowNotification(true);
       return;
     }
 
@@ -451,7 +461,9 @@ export default function DebtsPage() {
         throw new Error(errorData.message || 'Gagal melakukan pembayaran');
       }
 
-      alert('Pembayaran berhasil!');
+      setNotificationMessage('Pembayaran berhasil!');
+      setNotificationType('success');
+      setShowNotification(true);
       setShowPayModal(false);
       setSelectedDebt(null);
       setPaymentAmount('');
@@ -463,7 +475,9 @@ export default function DebtsPage() {
       fetchSummary();
     } catch (err) {
       console.error('Failed to pay debt', err);
-      alert(err instanceof Error ? err.message : 'Gagal melakukan pembayaran');
+      setNotificationMessage(err instanceof Error ? err.message : 'Gagal melakukan pembayaran');
+      setNotificationType('error');
+      setShowNotification(true);
     } finally {
       setIsPaying(false);
     }
@@ -1051,6 +1065,14 @@ export default function DebtsPage() {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification
+        show={showNotification}
+        message={notificationMessage}
+        type={notificationType}
+        onClose={() => setShowNotification(false)}
+      />
     </div>
   );
 }
